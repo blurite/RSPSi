@@ -1,3 +1,4 @@
+/*
 import org.displee.CacheLibrary;
 import org.junit.Test;
 
@@ -72,3 +73,4 @@ public class TestOsrs {
 	}
 
 }
+*/

@@ -1,16 +1,19 @@
+plugins {
+	id 'java-library'
+}
+
 description = 'Client'
 
 dependencies {
-	implementation project(':RS-Cache-Library')
-    implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
-	implementation group: 'org.tukaani', name: 'xz', version: '1.9'
-	implementation group: 'org.brotli', name: 'dec', version: '0.1.2'
-    implementation group: 'com.google.guava', name: 'guava', version: '31.0-jre'
-	implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.5'
-	implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.12.5'
-	implementation group: 'net.coobird', name: 'thumbnailator', version: '0.4.14'
-	implementation group: 'org.jfree', name: 'org.jfree.fxgraphics2d', version: '2.1.2'
-	implementation group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
-	implementation group: 'org.greenrobot', name: 'eventbus', version: '3.2.0'
+	api project(':RS-Cache-Library')
+	api group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+	api group: 'org.tukaani', name: 'xz', version: '1.9'
+	api group: 'org.brotli', name: 'dec', version: '0.1.2'
+	api group: 'com.google.guava', name: 'guava', version: '31.0-jre'
+	api group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.5'
+	api group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.12.5'
+	api group: 'net.coobird', name: 'thumbnailator', version: '0.4.14'
+	api group: 'org.jfree', name: 'org.jfree.fxgraphics2d', version: '2.1.2'
+	api group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
+	api group: 'org.greenrobot', name: 'eventbus', version: '3.2.0'
 }
-

@@ -1,3 +1,4 @@
+/*
 
 import org.displee.io.impl.InputStream;
 import org.displee.io.impl.OutputStream;
@@ -23,3 +24,4 @@ public class Test {
 	}
 
 }
+*/
