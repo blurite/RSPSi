@@ -39,7 +39,7 @@ public final class MapRegion {
 	public static int maximumPlane = 99;
 	private static final int[] SINE_VERTICIES = { 0, -1, 0, 1 };
 
-	private static int calculateHeight(int x, int y) {
+	public static int calculateHeight(int x, int y) {
 		int height = interpolatedNoise(x + 45365, y + 0x16713, 4) - 128
 				+ (interpolatedNoise(x + 10294, y + 37821, 2) - 128 >> 1) + (interpolatedNoise(x, y, 1) - 128 >> 2);
 		height = (int) (height * 0.3D) + 35;
@@ -478,6 +478,7 @@ public final class MapRegion {
 	}
 
 	public final void decodeOldMapData(Buffer buffer, int x, int y, int z, int regionX, int regionY, int orientation) {// XXX
+		System.out.println("Decode Oldd");
 		if (x >= 0 && x < width && y >= 0 && y < length) {
 			tileFlags[z][x][y] = 0;
 			manualTileHeight[z][x][y] = 0;

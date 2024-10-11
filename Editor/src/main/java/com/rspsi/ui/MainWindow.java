@@ -1,5 +1,6 @@
 package com.rspsi.ui;
 
+import com.rspsi.controls.ConvertLandscapeTool;
 import com.rspsi.dialogs.RenderDistanceDialog;
 import com.rspsi.options.KeyboardState;
 import com.rspsi.util.*;
@@ -137,6 +138,7 @@ public class MainWindow extends Application {
 	private SelectPackWindow selectPack;
 	private SelectXTEAWindow selectXTEA;
 	private RemappingTool remappingTool;
+	private ConvertLandscapeTool convertLandscapeTool;
 
 	private Mesh errorMesh;
 
@@ -435,11 +437,23 @@ public class MainWindow extends Application {
 			
 			remappingTool = new RemappingTool();
 			remappingTool.start(new Stage());
-			
+
 			controller.getShowRemapperBtn().setOnAction(evt -> {
 				remappingTool.show();
 				if(remappingTool.valid()) {
 					remappingTool.doRemap();
+				}
+			});
+
+
+			convertLandscapeTool = new ConvertLandscapeTool();
+			convertLandscapeTool.start(new Stage());
+
+
+			controller.getConvertLandscapeBtn().setOnAction(evt -> {
+				convertLandscapeTool.show();
+				if(convertLandscapeTool.valid()) {
+					convertLandscapeTool.doRencode();
 				}
 			});
 

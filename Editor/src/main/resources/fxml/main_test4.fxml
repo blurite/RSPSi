@@ -534,6 +534,7 @@
                               <MenuItem fx:id="showFullMap" mnemonicParsing="false" text="Show full map" />
                               <MenuItem fx:id="showObjectViewBtn" mnemonicParsing="false" text="Show object view" />
                               <MenuItem fx:id="showRemapperBtn" mnemonicParsing="false" text="Show remapper" />
+                              <MenuItem fx:id="convertLandscapeBtn" mnemonicParsing="false" text="Convert Landscape" />
                               <SeparatorMenuItem mnemonicParsing="false" />
                               <MenuItem fx:id="reloadSwatchesBtn" mnemonicParsing="false" text="Reload swatches" />
                               <MenuItem fx:id="reloadModelsBtn" mnemonicParsing="false" text="Reload models" />
