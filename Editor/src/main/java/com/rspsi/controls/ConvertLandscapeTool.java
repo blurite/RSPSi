@@ -55,7 +55,7 @@ public class ConvertLandscapeTool extends Application {
 
 		Scene scene = new Scene(content);
 		
-		primaryStage.setTitle("Remapping Tool");
+		primaryStage.setTitle("Convert Landscape Tool");
 		primaryStage.initStyle(StageStyle.UTILITY);
 		primaryStage.setScene(scene);
 		primaryStage.getIcons().add(ResourceLoader.getSingleton().getLogo64());
