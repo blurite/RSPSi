@@ -124,7 +124,6 @@ public class ConvertLandscapeTool extends Application {
 
 	public void doRencode() {
 		File mapsFolder = new File(mapFolderText.getText());
-		System.out.println(mapsFolder);
 		File outputDir = new File(mapsFolder, "converted");
 		if (mapsFolder.exists() && mapsFolder.isDirectory()) {
 			outputDir.mkdir();
@@ -136,10 +135,6 @@ public class ConvertLandscapeTool extends Application {
 							byte[] data = Files.readAllBytes(file.toPath());
 							File outputFile = new File(outputDir, file.getName());
 							if (FileUtils.isDatOrGzFile(file)) {
-
-
-								System.out.println(file.getName());
-
 								if (FileUtils.isGzFile(file)) {
 									data = GZIPUtils.unzip(data);
 								}
@@ -150,7 +145,7 @@ public class ConvertLandscapeTool extends Application {
 
 								unpackTiles(chunk.tileMapData, chunk.offsetX, chunk.offsetY, chunk.regionX, chunk.regionY);
 
-								byte[] tileMap = save_terrain_block(chunk);
+								byte[] tileMap = saveTerrainBlock(chunk);
 
 								if (file.getName().endsWith(".gz")) {
 									tileMap = GZIPUtils.gzipBytes(tileMap);
@@ -341,7 +336,7 @@ public class ConvertLandscapeTool extends Application {
 		for (int level = 0; level < 4; level++) {
 			for (int x = chunk.offsetX; x < chunk.offsetX + 64; x++) {
 				for (int y = chunk.offsetY; y < chunk.offsetY + 64; y++) {
-					save_terrain_tile(level, x, y, buffer);
+					saveTerrainTile(level, x, y, buffer);
 				}
 
 			}
