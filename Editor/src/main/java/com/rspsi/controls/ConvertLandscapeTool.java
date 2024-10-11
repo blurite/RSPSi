@@ -336,7 +336,7 @@ public class ConvertLandscapeTool extends Application {
 	}
 
 
-	public byte[] save_terrain_block(Chunk chunk) {
+	public byte[] saveTerrainBlock(Chunk chunk) {
 		Buffer buffer = new Buffer(new byte[131072]);
 		for (int level = 0; level < 4; level++) {
 			for (int x = chunk.offsetX; x < chunk.offsetX + 64; x++) {
