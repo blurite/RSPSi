@@ -352,7 +352,7 @@ public class ConvertLandscapeTool extends Application {
 		return data;
 	}
 
-	private void save_terrain_tile(int level, int x, int y, Buffer buffer) {
+	private void saveTerrainTile(int level, int x, int y, Buffer buffer) {
 		if (overlays[level][x][y] != 0) {
 			buffer.writeShort(overlayShapes[level][x][y] * 4 + (overlayOrientations[level][x][y] & 3) + 2);
 			buffer.writeShort(overlays[level][x][y] & 0xFFFF);
