@@ -33,7 +33,13 @@ subprojects {
 
     task copyJarToBin(type: Copy) {
         from jar.outputs
-        into new File(project(':Editor').projectDir, "/plugins/inactive")
+        def destDir = new File(project.rootDir, "RSPSI-Jar/plugins/inactive")
+        into destDir
+        doFirst {
+            if (!destDir.exists()) {
+                destDir.mkdirs()
+            }
+        }
     }
 
 
