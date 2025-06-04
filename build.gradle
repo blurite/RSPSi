@@ -58,6 +58,13 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 task RSPSIJarDist {
+    dependsOn(':Editor:shadowJar')
+    dependsOn('Plugins:OSRSPlugin:buildAndMove')
+
+    project(':Plugins').subprojects.each { subproject ->
+        dependsOn(subproject.tasks.named('jar'))
+    }
+
     doLast {
         def rspsiJarDir = new File(projectDir, 'RSPSI-Jar')
         def pluginsDir = new File(rspsiJarDir, 'plugins')
@@ -69,9 +76,9 @@ task RSPSIJarDist {
         activeDir.mkdirs()
         inactiveDir.mkdirs()
 
-        def editorJar = project(':Editor').tasks.jar.archiveFile.get().asFile.toPath()
+        def editorShadowJar = project(':Editor').tasks.named('shadowJar').get().archiveFile.get().asFile.toPath()
         def editorJarDest = new File(rspsiJarDir, "Editor-${project.version}.jar").toPath()
-        Files.copy(editorJar, editorJarDest, StandardCopyOption.REPLACE_EXISTING)
+        Files.copy(editorShadowJar, editorJarDest, StandardCopyOption.REPLACE_EXISTING)
 
         project(':Plugins').subprojects.each { subproject ->
             def pluginJar = new File(subproject.buildDir, "libs/${subproject.name}.jar").toPath()
@@ -80,10 +87,4 @@ task RSPSIJarDist {
             }
         }
     }
-}
-
-RSPSIJarDist.dependsOn(':Editor:jar')
-RSPSIJarDist.dependsOn('Plugins:OSRSPlugin:buildAndMove')
-project(':Plugins').subprojects.each { subproject ->
-    RSPSIJarDist.dependsOn(subproject.tasks.named('jar'))
 }

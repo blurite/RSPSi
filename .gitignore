@@ -15,3 +15,5 @@ out/
 hs_err_*
 /Editor/plugins/
 RSPSI-Jar/
+*.jar
+*.zip
