@@ -90,7 +90,10 @@ public class FloorDefinitionLoaderOSRS extends FloorDefinitionLoader {
 			} else if (opcode == 7) {
 				int anotherRgb = ((buffer.get() & 0xff) << 16) + ((buffer.get() & 0xff) << 8) + (buffer.get() & 0xff);
 				floor.setAnotherRgb(anotherRgb);
-			} else if (opcode == 9) {
+			} else if (opcode == 8) {
+				// dead branch
+			}else if (opcode == 9) {
+				buffer.get();
 			} else {
 				System.out.println("Error unrecognised overlay code: " + opcode);
 			}
