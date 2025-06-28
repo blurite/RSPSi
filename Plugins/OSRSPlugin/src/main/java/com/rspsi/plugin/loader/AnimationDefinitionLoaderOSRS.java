@@ -124,6 +124,10 @@ public class AnimationDefinitionLoaderOSRS extends AnimationDefinitionLoader {
 			} else if (opcode == 17) {
 				int count = buffer.readUByte();
 				buffer.skip(count);
+			} else if (opcode == 18) {
+				buffer.readOSRSString();
+			} else if (opcode == 19) {
+				// cross world sounds
 			} else {
 				System.err.println("Error unrecognised seq config code: " + opcode);
 			}
