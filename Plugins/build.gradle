@@ -30,21 +30,30 @@ subprojects {
         implementation project(':Editor')
     }
 
-
     task copyJarToBin(type: Copy) {
         from jar.outputs
-        into new File(project(':Editor').projectDir, "/plugins/inactive")
+
+        into new File(project(':Editor').projectDir, "plugins/inactive")
+
+        // new ouput dir (RSPSI-Jar)
+        def destDir = new File(project.rootDir, "RSPSI-Jar/plugins/inactive")
+        into destDir
+
+        // ensure the RSPSI-Jar folder exists
+        doFirst {
+            if (!destDir.exists()) {
+                destDir.mkdirs()
+            }
+        }
     }
 
+    task buildAndMove() {
+        dependsOn compileJava, serviceLoaderBuild, jar, copyJarToBin
+    }
 
-    task buildAndMove()
-    buildAndMove.dependsOn(compileJava, serviceLoaderBuild, jar, copyJarToBin)
-
-    serviceLoaderBuild.mustRunAfter(compileJava)
-    jar.mustRunAfter(serviceLoaderBuild)
-    copyJarToBin.mustRunAfter(jar)
-
-
+    serviceLoaderBuild.mustRunAfter compileJava
+    jar.mustRunAfter serviceLoaderBuild
+    copyJarToBin.mustRunAfter jar
 
     buildAndMove.group = 'plugin'
 }
