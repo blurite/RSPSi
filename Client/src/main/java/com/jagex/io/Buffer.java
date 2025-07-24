@@ -215,28 +215,44 @@ public final class Buffer {
 
 		return readInt() & Integer.MAX_VALUE;
 	}
-	
-	private static char CHARACTERS[] = { '\u20AC', '\0', '\u201A', '\u0192', '\u201E', '\u2026', '\u2020', '\u2021',
-			'\u02C6', '\u2030', '\u0160', '\u2039', '\u0152', '\0', '\u017D', '\0', '\0', '\u2018', '\u2019', '\u201C',
-			'\u201D', '\u2022', '\u2013', '\u2014', '\u02DC', '\u2122', '\u0161', '\u203A', '\u0153', '\0', '\u017E',
-			'\u0178' };
-	
-	public String readOSRSString() {
-		StringBuilder bldr = new StringBuilder();
-		int b;
-		while ((b = payload[position++]) != 0) {
-			if (b >= 127 && b < 160) {
-				char curChar = CHARACTERS[b - 128];
-				if (curChar == 0) {
-					curChar = 63;
-				}
-				
-				bldr.append(curChar);
-			} else {
-				bldr.append((char) b);
+
+	private static final char[] CHARACTERS = new char[]
+			{
+					'\u20ac', '\u0000', '\u201a', '\u0192', '\u201e', '\u2026',
+					'\u2020', '\u2021', '\u02c6', '\u2030', '\u0160', '\u2039',
+					'\u0152', '\u0000', '\u017d', '\u0000', '\u0000', '\u2018',
+					'\u2019', '\u201c', '\u201d', '\u2022', '\u2013', '\u2014',
+					'\u02dc', '\u2122', '\u0161', '\u203a', '\u0153', '\u0000',
+					'\u017e', '\u0178'
+			};
+
+	public String readOSRSString()
+	{
+		StringBuilder sb = new StringBuilder();
+
+		for (; ; )
+		{
+			int ch = this.readUByte();
+
+			if (ch == 0)
+			{
+				break;
 			}
+
+			if (ch >= 128 && ch < 160)
+			{
+				char var7 = CHARACTERS[ch - 128];
+				if (0 == var7)
+				{
+					var7 = '?';
+				}
+
+				ch = var7;
+			}
+
+			sb.append((char) ch);
 		}
-		return bldr.toString();
+		return sb.toString();
 	}
 
 	public String readString() {
