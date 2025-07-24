@@ -1,15 +1,10 @@
 package com.jagex.map;
 
-import java.util.Arrays;
-import java.util.Map;
-
 import com.jagex.Client;
-import com.jagex.cache.def.RSArea;
-import com.jagex.cache.loader.config.RSAreaLoader;
-import lombok.extern.slf4j.Slf4j;
-
 import com.jagex.cache.def.Floor;
 import com.jagex.cache.def.ObjectDefinition;
+import com.jagex.cache.def.RSArea;
+import com.jagex.cache.loader.config.RSAreaLoader;
 import com.jagex.cache.loader.floor.FloorDefinitionLoader;
 import com.jagex.cache.loader.object.ObjectDefinitionLoader;
 import com.jagex.cache.loader.textures.TextureLoader;
@@ -26,6 +21,10 @@ import com.jagex.util.ColourUtils;
 import com.jagex.util.Constants;
 import com.jagex.util.ObjectKey;
 import com.rspsi.options.Options;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Arrays;
+import java.util.Map;
 
 @Slf4j
 public final class MapRegion {
@@ -682,7 +681,7 @@ public final class MapRegion {
 
 						if (id > 0) {
 							Floor floor = FloorDefinitionLoader.getUnderlay(id - 1);
-							if(floor == null)
+							if (floor == null)
 								floor = FloorDefinitionLoader.getUnderlay(0);
 							hues[y] += floor.getWeightedHue();
 							saturations[y] += floor.getSaturation();
@@ -698,7 +697,7 @@ public final class MapRegion {
 
 						if (id > 0) {
 							Floor floor = FloorDefinitionLoader.getUnderlay(id - 1);
-							if(floor == null)
+							if (floor == null)
 								floor = FloorDefinitionLoader.getUnderlay(0);
 							hues[y] -= floor.getWeightedHue();
 							saturations[y] -= floor.getSaturation();

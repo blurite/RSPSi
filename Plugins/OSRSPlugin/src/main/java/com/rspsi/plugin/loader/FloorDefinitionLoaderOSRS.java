@@ -2,16 +2,13 @@ package com.rspsi.plugin.loader;
 
 import com.displee.cache.index.archive.Archive;
 import com.displee.cache.index.archive.file.File;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Map;
-
-import com.google.common.collect.Maps;
 import com.jagex.cache.def.Floor;
 import com.jagex.cache.loader.floor.FloorDefinitionLoader;
 import com.jagex.cache.loader.floor.FloorType;
 import lombok.val;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class FloorDefinitionLoaderOSRS extends FloorDefinitionLoader {
 
@@ -46,10 +43,7 @@ public class FloorDefinitionLoaderOSRS extends FloorDefinitionLoader {
 				underlays[file.getId()] = floor;
 			}
 		}
-		
-		
 	}
-
 
 	public Floor decodeUnderlay(ByteBuffer buffer) {
 		Floor floor = new Floor();
@@ -94,13 +88,14 @@ public class FloorDefinitionLoaderOSRS extends FloorDefinitionLoader {
 		}
 		return floor;
 	}
-	
+
 	@Override
 	public Floor getFloor(int id, FloorType type) {
-		if(type == FloorType.OVERLAY)
-			return overlays[id];
-		else
-			return underlays[id];
+		if (type == FloorType.OVERLAY) {
+			return id < 0 || id >= overlays.length ? null : overlays[id];
+		} else {
+			return id < 0 || id >= underlays.length ? null : underlays[id];
+		}
 	}
 
 
