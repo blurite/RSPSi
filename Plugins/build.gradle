@@ -7,13 +7,12 @@ buildscript {
 }
 
 plugins {
- 	id "com.github.harbby.gradle.serviceloader" version "1.1.8" apply false
+    id "com.github.harbby.gradle.serviceloader" version "1.1.9" apply false
 }
 
 subprojects {
     group = 'Plugins'
     version = '1.7.0-BETA'
-
 
     apply plugin: "com.github.harbby.gradle.serviceloader"
 
@@ -43,7 +42,6 @@ subprojects {
     serviceLoaderBuild.mustRunAfter(compileJava)
     jar.mustRunAfter(serviceLoaderBuild)
     copyJarToBin.mustRunAfter(jar)
-
 
 
     buildAndMove.group = 'plugin'
