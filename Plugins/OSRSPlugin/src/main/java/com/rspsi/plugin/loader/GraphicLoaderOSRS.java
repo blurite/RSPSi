@@ -2,7 +2,6 @@ package com.rspsi.plugin.loader;
 
 import com.displee.cache.index.archive.Archive;
 import com.displee.cache.index.archive.file.File;
-
 import com.jagex.cache.anim.Graphic;
 import com.jagex.cache.loader.anim.AnimationDefinitionLoader;
 import com.jagex.cache.loader.anim.GraphicLoader;
@@ -46,24 +45,6 @@ public class GraphicLoaderOSRS extends GraphicLoader {
 		}
 	}
 
-	@Override
-	public void init(byte[] data) {
-		Buffer buffer = new Buffer(data);
-		count = buffer.readUShort();
-		if (graphics == null) {
-			graphics = new Graphic[count];
-		}
-
-		for (int id = 0; id < count; id++) {
-			try {
-				graphics[id] = decode(buffer);
-				graphics[id].setId(id);
-			} catch (Exception ex) {
-
-			}
-		}
-	}
-	
 	public Graphic decode(Buffer buffer) {
 		Graphic graphic = new Graphic();
 		int lastOpcode = -1;

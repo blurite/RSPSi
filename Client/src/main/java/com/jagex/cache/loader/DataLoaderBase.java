@@ -8,5 +8,5 @@ public interface DataLoaderBase<T> {
 	int count();
 	
 	void init(Archive archive);
-	void init(byte[] data);
+
 }

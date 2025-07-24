@@ -22,13 +22,7 @@ public class FloorDefinitionLoaderOSRS extends FloorDefinitionLoader {
 	public void init(Archive archive) {
 		
 	}
-	
 
-	@Override
-	public void init(byte[] data) {
-	
-	}
-	
 	public void initOverlays(Archive archive) {
 		val highestId = Arrays.stream(archive.fileIds()).max().getAsInt();
 		this.overlays = new Floor[highestId + 1];
