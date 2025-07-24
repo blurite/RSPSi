@@ -67,6 +67,8 @@ public class Chunk {
 
 	}
 
+	public String tileMapGroup = "";
+	public String objectMapGroup = "";
 	public int tileMapId = -1;
 	public int objectMapId = -1;
 	public String objectMapName;

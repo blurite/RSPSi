@@ -1,10 +1,12 @@
 package com.rspsi.plugin.loader;
 
-import org.displee.cache.index.archive.Archive;
-import org.displee.cache.index.archive.file.File;
+import com.displee.cache.index.archive.Archive;
+import com.displee.cache.index.archive.file.File;
 
+import java.util.Arrays;
 import java.util.List;
 
+import lombok.val;
 import org.apache.commons.compress.utils.Lists;
 
 import com.jagex.cache.anim.Animation;
@@ -19,8 +21,9 @@ public class AnimationDefinitionLoaderOSRS extends AnimationDefinitionLoader {
 	
 	@Override
 	public void init(Archive archive) {
-		animations = new Animation[archive.getHighestId() + 1];
-		for(File file : archive.getFiles()) {
+		val highestId = Arrays.stream(archive.fileIds()).max().getAsInt();
+		animations = new Animation[highestId + 1];
+		for(File file : archive.files()) {
 			if(file != null && file.getData() != null) {
 				animations[file.getId()] = decode(new Buffer(file.getData()));
 			}
@@ -112,14 +115,21 @@ public class AnimationDefinitionLoaderOSRS extends AnimationDefinitionLoader {
 					buffer.readUShort();
 				}
 			} else if (opcode == 13) {
-				int len = buffer.readUByte();
-
-				for (int i = 0; i < len; i++) {
-					buffer.skip(3);
-				}
-			
+				buffer.skip(4);
+			} else if (opcode == 14) {
+				int count = buffer.readUShort();
+				buffer.skip(count * 8);
+			} else if (opcode == 15) {
+				buffer.skip(4);
+			} else if (opcode == 17) {
+				int count = buffer.readUByte();
+				buffer.skip(count);
+			} else if (opcode == 18) {
+				buffer.readOSRSString();
+			} else if (opcode == 19) {
+				// cross world sounds
 			} else {
-				System.out.println("Error unrecognised seq config code: " + opcode);
+				System.err.println("Error unrecognised seq config code: " + opcode);
 			}
 		} while (true);
 

@@ -1,12 +1,10 @@
 package com.jagex;
 
+import com.displee.cache.index.archive.Archive;
 import com.jagex.map.SceneGraph;
 import com.jagex.map.tile.SceneTile;
 import com.rspsi.options.KeyboardState;
 import javafx.scene.input.KeyCode;
-import org.displee.cache.index.archive.Archive;
-import org.displee.utilities.GZIPUtils;
-
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -24,6 +22,7 @@ import java.util.function.Consumer;
 
 import javax.imageio.ImageIO;
 
+import org.displee.util.GZIPUtils;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -52,9 +51,9 @@ import com.jagex.util.ObjectKey;
 import com.jagex.util.TextRenderUtils;
 import com.rspsi.cache.CacheFileType;
 import com.rspsi.game.DisplayCanvas;
-import com.rspsi.misc.Vector2;
+import com.rspsi.core.misc.Vector2;
 import com.rspsi.options.Options;
-import com.rspsi.plugins.ClientPluginLoader;
+import com.rspsi.plugins.core.ClientPluginLoader;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -511,7 +510,7 @@ public final class Client implements Runnable {
 				mapFunctions = Arrays.copyOf(functions, lastIdx + 1);
 			} else {
 				try {
-					mapScenes = Sprite.unpackAndDecode(ByteBuffer.wrap(cache.readFile(CacheFileType.SPRITE).getArchive("mapscene").readFile(0)));
+					mapScenes = Sprite.unpackAndDecode(ByteBuffer.wrap(cache.getFile(CacheFileType.SPRITE).archive("mapscene").file(0).getData()));
 				} catch (Exception e) {
 					mapScenes = new Sprite[0];
 				}
@@ -624,6 +623,7 @@ public final class Client implements Runnable {
 					// Each -6 is -0.5 in loop, for a total of +1 loop
 					int landscapeMapId = MapIndexLoader.resolve(cX, cY, MapType.LANDSCAPE);
 					chunk.tileMapId = landscapeMapId;
+					chunk.tileMapGroup = MapIndexLoader.instance.getGroupName(chunk.regionHash,MapType.LANDSCAPE);
 					chunk.tileMapName = MapIndexLoader.getName(cX, cY, MapType.LANDSCAPE);
 					if (landscapeMapId != -1) {
 						getProvider().requestMap(landscapeMapId, hash);
@@ -632,12 +632,13 @@ public final class Client implements Runnable {
 
 					int objectMapId = MapIndexLoader.resolve(cX, cY, MapType.OBJECT);
 					chunk.objectMapId = objectMapId;
+					chunk.objectMapGroup = MapIndexLoader.instance.getGroupName(chunk.regionHash,MapType.OBJECT);
 					chunk.objectMapName = MapIndexLoader.getName(cX, cY, MapType.OBJECT);
 					if (objectMapId != -1) {
 						getProvider().requestMap(objectMapId, hash);
 						System.out.println("Requesting object map " + objectMapId);
 					}
-					log.info("Added chunk, obj/landscape {}/{}", objectMapId, landscapeMapId);
+					log.info("Added chunk, obj/landscape {}/{} [{},{}]", objectMapId, landscapeMapId, chunk.objectMapGroup, chunk.tileMapGroup);
 					pendingChunks.add(chunk);
 				//} catch (Exception exception) {
 				//	break;
@@ -678,7 +679,7 @@ public final class Client implements Runnable {
 		mapRegion = new MapRegion(sceneGraph, 64 * (chunkXLength), 64 * (chunkYLength));
 		mapRegion.tileHeights[0] = heights;
 		for(int x = 0;x<mapRegion.underlays[0].length;x++)
-			Arrays.fill(mapRegion.underlays[0][x], (byte)1);
+			Arrays.fill(mapRegion.underlays[0][x], (short)1);
 		for(int x = 0;x<mapRegion.manualTileHeight[0].length;x++)
 			Arrays.fill(mapRegion.manualTileHeight[0][x], (byte)1);
 		mapRegion.setHeights();
@@ -991,7 +992,6 @@ public final class Client implements Runnable {
 	}
 
 	public final void drawDebugOverlay() {
-
 		if (Options.showDebug.get()) {
 			int c = (int) gameCanvas.getWidth() - 20;
 			int k = 40;
@@ -999,7 +999,7 @@ public final class Client implements Runnable {
 			if (fps < 15) {
 				i1 = 0xff0000;
 			}
-			if(this.getCurrentChunk() != null) {
+			if (this.getCurrentChunk() != null) {
 				Chunk chunk = this.getCurrentChunk();
 				k += TextRenderUtils.renderLeft(gameImageBuffer, "WorldX: " + (chunk.regionX * 64) + " WorldY: " + (chunk.regionY * 64), c, k, i1);
 			}
@@ -1010,7 +1010,7 @@ public final class Client implements Runnable {
 			i1 = 0xffff00;
 			k += TextRenderUtils.renderLeft(gameImageBuffer, "Mem: " + memory / 1024 + "MB", c, k, 0xffff00);
 
-			k += TextRenderUtils.renderLeft(gameImageBuffer, "Chunk map files:  "  + getCurrentChunk().tileMapName + " " + getCurrentChunk().objectMapName + " ", c, k, 0xffff00);
+			k += TextRenderUtils.renderLeft(gameImageBuffer, "Chunk map files:  " + getCurrentChunk().tileMapName + " " + getCurrentChunk().objectMapName + " ", c, k, 0xffff00);
 
 			k += TextRenderUtils.renderLeft(gameImageBuffer, "Mouse: " + mouseEventX + "," + mouseEventY + "", c, k, 0xffff00);
 
@@ -1027,12 +1027,26 @@ public final class Client implements Runnable {
 
 			k += TextRenderUtils.renderLeft(gameImageBuffer, "Hover UID: " + hoveredUID + "", c, k, 0xffff00);
 
-			if(sceneGraph.tiles[Options.currentHeight.get()][sceneGraph.hoveredTileX][sceneGraph.hoveredTileY] != null) {
-				SceneTile tile = sceneGraph.tiles[Options.currentHeight.get()][sceneGraph.hoveredTileX][sceneGraph.hoveredTileY];
-				k += TextRenderUtils.renderLeft(gameImageBuffer, "Simple Data: " + (tile.simple != null ? tile.simple.toString() : "") , c, k, 0xffff00);
-
-				k += TextRenderUtils.renderLeft(gameImageBuffer, "Shaped Data: "+ (tile.shape != null ? tile.shape.toString() : "null"), c, k, 0xffff00);
-
+			int currentHeight = Options.currentHeight.get();
+			int hoveredTileX = SceneGraph.hoveredTileX;
+			int hoveredTileY = SceneGraph.hoveredTileY;
+			SceneTile[][][] tiles = sceneGraph.tiles;
+			if (currentHeight >= 0 && currentHeight < tiles.length) {
+				SceneTile[][] tilesOnHeight = tiles[currentHeight];
+				if (hoveredTileX >= 0 && hoveredTileX < tilesOnHeight.length) {
+					SceneTile[] tilesOnXCoord = tilesOnHeight[hoveredTileX];
+					if (hoveredTileY >= 0 && hoveredTileY < tilesOnXCoord.length) {
+						SceneTile tile = tilesOnXCoord[hoveredTileY];
+						if (tile != null) {
+							if (Options.showTileInformation.get()) {
+								k += TextRenderUtils.renderLeft(gameImageBuffer, "Simple Data: " + (tile.simple != null ? tile.simple.toString() : ""), c, k, 0xffff00);
+								k += TextRenderUtils.renderLeft(gameImageBuffer, "Shaped Data: " + (tile.shape != null ? tile.shape.toString() : "null"), c, k, 0xffff00);
+							}
+							k += TextRenderUtils.renderLeft(gameImageBuffer, "Underlay id: " + tile.underlayId + "", c, k, 0xFFFF00);
+							k += TextRenderUtils.renderLeft(gameImageBuffer, "Overlay id: " + tile.overlayId + "", c, k, 0xFFFF00);
+						}
+					}
+				}
 			}
 
 
@@ -1052,7 +1066,7 @@ public final class Client implements Runnable {
 
 				k += TextRenderUtils.renderLeft(gameImageBuffer, "Type: " + type + " | Rot: " + orientation, c, k, 0xffff00);
 
-				k += TextRenderUtils.renderLeft(gameImageBuffer, "Pos: " + x + ", " + y, c, k,  0xffff00);
+				k += TextRenderUtils.renderLeft(gameImageBuffer, "Pos: " + x + ", " + y, c, k, 0xffff00);
 			}
 
 		}

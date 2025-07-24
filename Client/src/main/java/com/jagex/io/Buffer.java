@@ -1,5 +1,8 @@
 package com.jagex.io;
 
+import com.displee.cache.index.archive.file.File;
+import com.google.common.base.Preconditions;
+
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 
@@ -32,6 +35,11 @@ public final class Buffer {
 	}
 	public Buffer(byte[] payload) {
 		this.payload = payload;
+		position = 0;
+	}
+
+	public Buffer(File payload) {
+		this.payload = payload.getData();
 		position = 0;
 	}
 
@@ -197,6 +205,8 @@ public final class Buffer {
 
 		return readUShort() - 49152;
 	}
+
+
 	
 	public int readBigSmart() {
 		int value = payload[position] & 0xff;
@@ -422,10 +432,18 @@ public final class Buffer {
 
 	public void writeUSmartInt(int value) {
 		if (value > Short.MAX_VALUE) {
-			this.writeInt(value);
+			writeIntSmart(value);
 		} else {
-			this.writeUSmart(value);
+			writeUSmart(value);
 		}
+	}
+
+	public void writeIntSmart(int value) {
+		Preconditions.checkArgument(value > 32767);
+		Preconditions.checkArgument(value < (Integer.MAX_VALUE - 32767));
+		int diff = value - 32767;
+		writeShort(65535);
+		writeUSmart(diff);
 	}
 
 	public void skip(int bytesToSkip) {

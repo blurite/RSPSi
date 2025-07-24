@@ -1,17 +1,19 @@
-
-
 plugins {
-	id 'java'
-	id 'io.franzbecker.gradle-lombok' version '3.3.0'
-	id 'application'
-	//id 'org.beryx.runtime' version '1.2.0' apply false
-	id 'org.openjfx.javafxplugin' version '0.0.10'
+    id 'io.franzbecker.gradle-lombok' version '5.0.0'
+    id "com.github.johnrengelman.shadow" version "8.1.1" apply false
+    id 'application'
+    id 'java-library'
+
+    id 'org.beryx.runtime' version '1.13.0' apply false
+
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 
 wrapper {
-    gradleVersion = '6.1'
+    gradleVersion = '8.5'
 }
+
 
 group = 'RSPSi Editor'
 version = '1.16.1'
@@ -21,43 +23,46 @@ allprojects {
         mavenCentral()
         mavenLocal()
         maven { url "https://repo.maven.apache.org/maven2" }
-        maven { url "https://repo.adobe.com/nexus/content/repositories/public/"}
+        maven { url "https://repo.adobe.com/nexus/content/repositories/public/" }
     }
-
 }
 
 subprojects {
 
-	apply plugin: 'java'
-	apply plugin: 'io.franzbecker.gradle-lombok'
-	apply plugin: 'org.openjfx.javafxplugin'
-	
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    apply plugin: 'java-library'
+    apply plugin: 'io.franzbecker.gradle-lombok'
+
+
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 
     dependencies {
-	    implementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.6'
-	    implementation group: 'org.checkerframework', name: 'checker-qual', version: '3.18.0'
-	
-	    implementation group: 'com.google.guava', name: 'guava', version: '31.0-jre'
-	    implementation group: 'com.google.code.gson', name: 'gson', version: '2.8.8'
+
+        // https://mvnrepository.com/artifact/com.google.code.gson/gson
+        api group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.10'
+        // https://mvnrepository.com/artifact/org.checkerframework/checker-qual
+        api group: 'org.checkerframework', name: 'checker-qual', version: '3.21.1'
+
+        api group: 'com.google.guava', name: 'guava', version: '31.0.1-jre'
+        api group: 'com.google.code.gson', name: 'gson', version: '2.8.9'
+
+        api 'javax.servlet:javax.servlet-api:4.0.1'
     }
-    
-    	
-	lombok { // optional: values below are the defaults
-        version = "1.18.12"
-        sha256 = "49381508ecb02b3c173368436ef71b24c0d4418ad260e6cc98becbcf4b345406"
-	}
+
+
+    lombok { // optional: values below are the defaults
+        version = "1.18.22"
+    }
 
     compileJava {
         options.fork = true
         options.incremental = true
     }
-	
-	javafx {
-	    version = "11.0.2"
-	    modules = [ 'javafx.graphics', 'javafx.fxml', 'javafx.controls', 'javafx.media', 'javafx.swing']
-	}
+
+    apply plugin: 'org.openjfx.javafxplugin'
+    javafx {
+        version = "17"
+        modules = ['javafx.base', 'javafx.fxml', 'javafx.graphics', 'javafx.controls', 'javafx.media', 'javafx.swing']
+    }
 
 }
-
