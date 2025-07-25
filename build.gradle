@@ -37,7 +37,7 @@ subprojects {
         api group: 'com.google.guava', name: 'guava', version: '33.4.8-jre'
         api group: 'com.google.code.gson', name: 'gson', version: '2.13.1'
 
-        api 'javax.servlet:javax.servlet-api:4.0.1'
+        api group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '6.1.0'
     }
 
     lombok {
