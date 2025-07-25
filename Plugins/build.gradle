@@ -12,7 +12,7 @@ plugins {
 
 subprojects {
     group = 'Plugins'
-    version = '1.7.0-BETA'
+    version = '1.8.0-BETA'
 
     apply plugin: "com.github.harbby.gradle.serviceloader"
 

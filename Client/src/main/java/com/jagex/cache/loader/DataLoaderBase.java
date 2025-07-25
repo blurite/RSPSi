@@ -4,9 +4,10 @@ import com.displee.cache.index.archive.Archive;
 
 public interface DataLoaderBase<T> {
 
-	T forId(int id);
-	int count();
-	
-	void init(Archive archive);
+    T forId(final int id);
+
+    int count();
+
+    void init(final Archive archive);
 
 }

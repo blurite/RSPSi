@@ -4,7 +4,10 @@ import com.google.common.collect.Maps;
 import com.jagex.chunk.Chunk;
 import com.jagex.io.Buffer;
 import com.rspsi.resources.ResourceLoader;
-import com.rspsi.util.*;
+import com.rspsi.util.FXUtils;
+import com.rspsi.util.FileUtils;
+import com.rspsi.util.FilterMode;
+import com.rspsi.util.RetentionFileChooser;
 import javafx.application.Application;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -350,13 +353,13 @@ public class ConvertLandscapeTool extends Application {
 	private void saveTerrainTile(int level, int x, int y, Buffer buffer) {
 		if (overlays[level][x][y] != 0) {
 			buffer.writeShort(overlayShapes[level][x][y] * 4 + (overlayOrientations[level][x][y] & 3) + 2);
-			buffer.writeShort(overlays[level][x][y] & 0xFFFF);
+			buffer.writeShort(overlays[level][x][y] & 0x7FFF);
 		}
 		if (tileFlags[level][x][y] != 0) {
 			buffer.writeShort(tileFlags[level][x][y] + 49);
 		}
 		if (underlays[level][x][y] != 0) {
-			buffer.writeShort((underlays[level][x][y] & 0xFFFF) + 81);
+			buffer.writeShort((underlays[level][x][y] & 0x7FFF) + 81);
 		}
 		if (manualTileHeight[level][x][y] == 1 || level == 0) {
 			buffer.writeShort(1);

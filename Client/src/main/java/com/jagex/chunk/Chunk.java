@@ -1,19 +1,9 @@
 package com.jagex.chunk;
 
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.List;
-
-import com.rspsi.cache.CacheFileType;
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
-
 import com.google.common.collect.Lists;
 import com.jagex.Client;
 import com.jagex.cache.def.ObjectDefinition;
 import com.jagex.cache.def.RSArea;
-import com.jagex.cache.graphics.IndexedImage;
 import com.jagex.cache.graphics.Sprite;
 import com.jagex.cache.loader.config.RSAreaLoader;
 import com.jagex.cache.loader.object.ObjectDefinitionLoader;
@@ -24,13 +14,18 @@ import com.jagex.map.MapRegion;
 import com.jagex.map.SceneGraph;
 import com.jagex.map.object.SpawnedObject;
 import com.jagex.net.ResourceResponse;
-import com.jagex.util.BitFlag;
 import com.jagex.util.ObjectKey;
+import com.rspsi.cache.CacheFileType;
 import com.rspsi.options.Options;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import lombok.Setter;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
+import java.util.ArrayDeque;
+import java.util.List;
 
 public class Chunk {
 	
@@ -301,10 +296,7 @@ public class Chunk {
 			if (objectMapData != null) {
 				System.out.println("object data not null");
 				mapRegion.unpackObjects(scenegraph, objectMapData, offsetX, offsetY);
-
 			}
-
-			
 
 			method63();
 			this.loaded = true;

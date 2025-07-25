@@ -179,6 +179,10 @@ public final class Buffer {
 		}
 	}
 
+	public short readShortRegular() {
+		return (short) ((payload[position++] << 8) | (payload[position++] & 0xFF));
+	}
+
 	public int readShort() {
 		position += 2;
 		int value = ((payload[position - 2] & 0xff) << 8) + (payload[position - 1] & 0xff);
@@ -318,6 +322,41 @@ public final class Buffer {
 			return readUByte();
 
 		return readUShort() - 0x8000;
+	}
+
+	public byte peek()
+	{
+		return payload[position];
+	}
+
+	public int readUnsignedByte()
+	{
+		return this.readByte() & 0xFF;
+	}
+
+	public int readUnsignedShort()
+	{
+		return this.readShortRegular() & 0xFFFF;
+	}
+
+	public int readUnsignedShortSmart()
+	{
+		int peek = this.peek() & 0xFF;
+		return peek < 128 ? this.readUnsignedByte() : this.readUnsignedShort() - 0x8000;
+	}
+
+	public int readUnsignedIntSmartShortCompat()
+	{
+		int var1 = 0;
+
+		int var2;
+		for (var2 = this.readUnsignedShortSmart(); var2 == 32767; var2 = this.readUnsignedShortSmart())
+		{
+			var1 += 32767;
+		}
+
+		var1 += var2;
+		return var1;
 	}
 	
 	public int readUSmartInt() {
