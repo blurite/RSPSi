@@ -1,14 +1,6 @@
 buildscript {
     repositories {
-        mavenLocal()
         mavenCentral()
-        maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
-    }
-    dependencies {
-        // provides javafx-gradle-plugin
-//         classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: "8.8.2"
-        // provides proguard.gradle.ProGuardTask (including all requirements)
-        classpath 'net.sf.proguard:proguard-gradle:6.1.1'
     }
 }
 
@@ -27,7 +19,7 @@ run {
 // In this section you declare the dependencies for your production and test code
 dependencies {
     api project(':Client')
-    api(group: 'org.controlsfx', name: 'controlsfx', version: '11.1.1') {
+    api(group: 'org.controlsfx', name: 'controlsfx', version: '11.2.2') {
         exclude group: 'org.openjfx'
     }
     api('com.jfoenix:jfoenix:9.0.10') {
@@ -61,7 +53,8 @@ runtime {
     jpackage {
         installerOptions = [
         ]
-        installerType = project.findProperty('installerType') ?: "msi"// we will pass this from the command line (example: -PinstallerType=msi)
+        installerType = project.findProperty('installerType') ?: "msi"
+// we will pass this from the command line (example: -PinstallerType=msi)
         if (installerType == 'msi') {
             imageOptions += ['--icon', 'src/main/resources/images/logo128.ico']
 
