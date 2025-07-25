@@ -22,7 +22,6 @@ import com.jagex.util.Constants;
 import com.jagex.util.ObjectKey;
 import com.rspsi.options.Options;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.cache.region.HeightCalc;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -205,15 +204,14 @@ public final class MapRegion {
 		while ((idOffset = buffer.readUnsignedIntSmartShortCompat()) != 0) {
 			id += idOffset;
 
+			final ObjectDefinition definition = ObjectDefinitionLoader.lookup(id);
+
 			while (buffer.readUnsignedShortSmart() != 0) {
 				final int attributes = buffer.readUnsignedByte();
-				final int type = attributes >> 2;
-
-				final ObjectDefinition definition = ObjectDefinitionLoader.lookup(id);
 				if (definition == null) {
 					continue;
 				}
-
+				final int type = attributes >> 2;
 				if (type != 22
 						|| !lowMemory
 						|| definition.isInteractive()
@@ -290,16 +288,15 @@ public final class MapRegion {
 	public void setHeights() {
 		// TODO Find a better way to fix the sloping issue
 
-		for(int z = 0;z<4;z++) {
-            if (length + 1 >= 0) System.arraycopy(tileHeights[z][width - 1], 0, tileHeights[z][width], 0, length + 1);
-		
-
-			for(int x = 0;x<=width;x++) {
-				tileHeights[z][x][length] = tileHeights[z][x][length - 1];
+		for (int z = 0; z < 4; z++) {
+			if (length + 1 >= 0) {
+				System.arraycopy(tileHeights[z][width - 1], 0, tileHeights[z][width], 0, length + 1);
 			}
 
+			for (int x = 0; x <= width; x++) {
+				tileHeights[z][x][length] = tileHeights[z][x][length - 1];
+			}
 		}
-
 	}
 
 	public void decodeConstructedLandscapes(byte[] data, SceneGraph scene, int plane, int topLeftRegionX,
@@ -403,7 +400,10 @@ public final class MapRegion {
 
 				final int localY = position & 0x3F;
 				final int localX = position >> 6 & 0x3F;
-				final int height = position >> 12 & 0x3;
+				int height = position >> 12;
+				if (height >= 4) {
+					height = 3;
+				}
 
 				final int attributes = buf.readUnsignedByte();
 				final int type = attributes >> 2;
@@ -478,58 +478,76 @@ public final class MapRegion {
 
 	public void loadTerrain(
 			final Buffer in,
-			final int baseX, final int baseY,
+			final int regionX, final int regionY,
 			final int z,
 			final int x, final int y
 	) {
+		if (x >= 0 && x < width && y >= 0 && y < length) {
+			tileFlags[z][x][y] = 0;
+
+			while (true) {
+				final int attribute = in.readUnsignedShort();
+
+				if (attribute == 0) {
+					manualTileHeight[z][x][y] = 0;
+
+					if (z == 0) {
+						tileHeights[0][x][y] = -calculateHeight(0xe3b7b + x + regionX, 0x87cce + y + regionY) * 8;
+					} else {
+						tileHeights[z][x][y] = tileHeights[z - 1][x][y] - 240;
+					}
+
+					return;
+				} else if (attribute == 1) {
+					manualTileHeight[z][x][y] = 1;
+
+					int height = in.readUnsignedByte();
+					if (height == 1) {
+						height = 0;
+					}
+
+					if (z == 0) {
+						tileHeights[0][x][y] = -height * 8;
+					} else {
+						tileHeights[z][x][y] = tileHeights[z - 1][x][y] - height * 8;
+					}
+
+					return;
+				} else if (attribute <= 49) {
+					overlays[z][x][y] = in.readShortRegular();
+					overlayShapes[z][x][y] = (byte) ((attribute - 2) / 4);
+					overlayOrientations[z][x][y] = (byte) (attribute - 2 & 3);
+				} else if (attribute <= 81) {
+					tileFlags[z][x][y] = (byte) (attribute - 49);
+				} else {
+					underlays[z][x][y] = (short) (attribute - 81);
+				}
+			}
+		}
+
 		while (true) {
-			final int attribute = in.readUnsignedShort();
-
-			if (attribute == 0) {
-				manualTileHeight[z][x][y] = 0;
-
-				if (z == 0) {
-					tileHeights[0][x][y] = -HeightCalc.calculate(baseX + x + 0xe3b7b, baseY + y + 0x87cce) * 8;
-				} else {
-					tileHeights[z][x][y] = tileHeights[z - 1][x][y] - 240;
-				}
-
+			int i = in.readUShort();
+			if (i == 0) {
 				break;
-			} else if (attribute == 1) {
-				manualTileHeight[z][x][y] = 1;
-
-				int height = in.readUnsignedByte();
-				if (height == 1) {
-					height = 0;
-				}
-
-				if (z == 0) {
-					tileHeights[0][x][y] = -height * 8;
-				} else {
-					tileHeights[z][x][y] = tileHeights[z - 1][x][y] - height * 8;
-				}
-
-				break;
-			} else if (attribute <= 49) {
-				overlays[z][x][y] = in.readShortRegular();
-				overlayShapes[z][x][y] = (byte) ((attribute - 2) / 4);
-				overlayOrientations[z][x][y] = (byte) (attribute - 2 & 3);
-			} else if (attribute <= 81) {
-				tileFlags[z][x][y] = (byte) (attribute - 49);
-			} else {
-				underlays[z][x][y] = (short) (attribute - 81);
+			} else if (i == 1) {
+				in.readUByte();
+				return;
+			} else if (i <= 49) {
+				in.readUShort();
 			}
 		}
 	}
 
 	public void loadTerrain(
 			final Buffer in,
+			final int regionX, final int regionY,
 			final int baseX, final int baseY
 	) {
 		for (int z = 0; z < 4; z++) {
 			for (int x = 0; x < 64; x++) {
+				final int ourX = baseX + x;
 				for (int y = 0; y < 64; y++) {
-					loadTerrain(in, baseX, baseY, z, x, y);
+					loadTerrain(in, regionX, regionY, z, ourX, baseY + y);
 				}
 			}
 		}
@@ -540,9 +558,9 @@ public final class MapRegion {
 		final int position = buffer.position;
 
 		try {
-			loadTerrain(buffer, dX, dY);
-		} catch (final Exception ignored) {
-			ignored.printStackTrace();
+			loadTerrain(buffer, regionX, regionY, dX, dY);
+		} catch (final Exception e) {
+			e.printStackTrace();
 
 			buffer.position = position;
 
@@ -785,9 +803,9 @@ public final class MapRegion {
 
 								if (overlayFloorId == 0) {
 									if (Options.hdTextures.get()) {
-										/*if (underlay - 1 >= FloorDefinitionLoader.getUnderlayCount()) {
+										if (underlay - 1 >= FloorDefinitionLoader.getUnderlayCount()) {
 											underlay = FloorDefinitionLoader.getUnderlayCount();
-										}*/
+										}
 										Floor floor = FloorDefinitionLoader.getUnderlay(underlay - 1);
 										if(floor == null)
 											continue;
@@ -834,9 +852,9 @@ public final class MapRegion {
 								} else {
 									int tileType = overlayShapes[z][centreX][centreY] + 1;
 									byte orientation = overlayOrientations[z][centreX][centreY];
-									/*if (overlayFloorId - 1 >= FloorDefinitionLoader.getOverlayCount()) {
+									if (overlayFloorId - 1 >= FloorDefinitionLoader.getOverlayCount()) {
 										overlayFloorId = FloorDefinitionLoader.getOverlayCount();
-									}*/
+									}
 									Floor overlayFloor = FloorDefinitionLoader.getOverlay(overlayFloorId - 1);
 									if(overlayFloor == null)
 										continue;
@@ -1755,9 +1773,9 @@ public final class MapRegion {
 										 * if(underlay == 0 && overlayFloorId == 0 && hiddenHL) { flag |= 64; }
 										 */
 										if (Options.hdTextures.get()) {
-											/*if (underlay - 1 >= FloorDefinitionLoader.getUnderlayCount()) {
+											if (underlay - 1 >= FloorDefinitionLoader.getUnderlayCount()) {
 												underlay = FloorDefinitionLoader.getUnderlayCount();
-											}*/
+											}
 											Floor floor = FloorDefinitionLoader.getUnderlay(underlay - 1);
 											int underlay_texture_id = floor.getTexture();
 											if (underlay_texture_id != -1) {
@@ -2158,9 +2176,9 @@ public final class MapRegion {
 										 * if(underlay == 0 && overlayFloorId == 0 && hiddenHL) { flag |= 64; }
 										 */
 										if (Options.hdTextures.get()) {
-											/*if (underlay - 1 >= FloorDefinitionLoader.getUnderlayCount()) {
+											if (underlay - 1 >= FloorDefinitionLoader.getUnderlayCount()) {
 												underlay = FloorDefinitionLoader.getUnderlayCount();
-											}*/
+											}
 											Floor floor = FloorDefinitionLoader.getUnderlay(underlay - 1);
 											int underlay_texture_id = floor.getTexture();
 											if (underlay_texture_id != -1) {

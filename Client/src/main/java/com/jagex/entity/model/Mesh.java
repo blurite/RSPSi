@@ -1,11 +1,5 @@
 package com.jagex.entity.model;
 
-import java.util.Arrays;
-import java.util.Objects;
-
-import lombok.extern.slf4j.Slf4j;
-import org.major.cache.anim.FrameConstants;
-
 import com.jagex.Client;
 import com.jagex.cache.anim.Frame;
 import com.jagex.cache.anim.FrameBase;
@@ -17,9 +11,13 @@ import com.jagex.util.Constants;
 import com.jagex.util.ObjectKey;
 import com.rspsi.core.misc.ToolType;
 import com.rspsi.options.Options;
-
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.major.cache.anim.FrameConstants;
+
+import java.util.Arrays;
+import java.util.Objects;
 
 @Slf4j
 public class Mesh extends Renderable {
@@ -1127,7 +1125,7 @@ public class Mesh extends Renderable {
                     colourZ = shadedtriangleColorsZ[index];
                 }
 
-                int texId = faceMaterial[index];
+                int texId = faceMaterial == null ? -1 : faceMaterial[index];
                 //texId = 23;
                 rasterizer.drawTexturedTriangle(
                         rasterizer.vertexScreenY[faceX],

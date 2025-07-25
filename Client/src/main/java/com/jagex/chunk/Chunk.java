@@ -484,12 +484,12 @@ public class Chunk {
 			//System.out.println("TILE MAP ID: " + tileMapId + " NULL");
 			return false;
 		}
-		if (objectMapId != -1 && objectMapData == null) {
+		if (objectMapId != -1) {
 			//System.out.println("OBJECT MAP ID: " + tileMapId + " NULL");
-			return false;
-		} else if(objectMapId != -1 && objectMapData != null)
-			if (!MapRegion.objectsReady(objectMapData, 0, 0))
+			if (objectMapData == null || !MapRegion.objectsReady(objectMapData, 0, 0)) {
 				return false;
+			}
+		}
 
 		loadChunk();
 		ready = true;
