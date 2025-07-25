@@ -2,10 +2,6 @@ description = 'Client'
 
 apply plugin: 'java-library'
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     api 'com.displee:rs-cache-library:7.3.0'
     api 'com.displee:disio:2.3'
