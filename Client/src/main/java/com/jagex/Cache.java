@@ -20,6 +20,7 @@ import com.rspsi.core.misc.XTEAManager;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 
 @Slf4j
 public class Cache {
@@ -47,6 +48,12 @@ public class Cache {
 
     private Index modelArchive, mapArchive, configArchive, skeletonArchive, skinArchive, spriteIndex, textureIndex, spotAnimIndex, varbitIndex, locIndex;
 
+    private boolean isCacheNewOSRS(CacheLibrary library) {
+        Index idx = library.index(2);
+        int indexCount = ArrayUtils.indexOf(library.indices(), null) - 1;
+        return idx.getRevision() >= 300 && indexCount <= 24;
+    }
+
     public Cache(Path path) {
         log.info("Loading cache at {}", path);
         indexedFileSystem = new CacheLibrary(path.toFile().toString(), false, null);
@@ -57,7 +64,7 @@ public class Cache {
             skinArchive = indexedFileSystem.index(2);
             skeletonArchive = null;//317 loads inside skins
             log.info("Loaded cache in 317 format!");
-        } else if (indexedFileSystem.isOSRS()) {
+        } else if (isCacheNewOSRS(indexedFileSystem)) {
             modelArchive = indexedFileSystem.index(7);
             mapArchive = indexedFileSystem.index(5);
             configArchive = indexedFileSystem.index(2);
@@ -95,7 +102,7 @@ public class Cache {
     public Sprite getSprite(int id) {
         if (spriteCache.contains(id))
             return spriteCache.get(id);
-        if (!indexedFileSystem.isOSRS())
+        if (!isCacheNewOSRS(indexedFileSystem))
             throw new RuntimeException("Cannot grab sprite by ID on 317!");
         Sprite sprite = Sprite.decode(ByteBuffer.wrap(spriteIndex.archive(id).file(0).getData()));
         spriteCache.put(id, sprite);
