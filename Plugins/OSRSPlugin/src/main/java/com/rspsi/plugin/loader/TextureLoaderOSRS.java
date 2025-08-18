@@ -3,19 +3,17 @@ package com.rspsi.plugin.loader;
 import com.displee.cache.index.Index;
 import com.displee.cache.index.archive.Archive;
 import com.displee.cache.index.archive.file.File;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-
 import com.jagex.cache.graphics.Sprite;
 import com.jagex.cache.loader.textures.TextureLoader;
 import com.jagex.draw.textures.SpriteTexture;
 import com.jagex.draw.textures.Texture;
 import com.jagex.io.Buffer;
 import com.rspsi.core.misc.FixedHashMap;
-
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 @Slf4j
 public class TextureLoaderOSRS extends TextureLoader {
@@ -116,18 +114,7 @@ public class TextureLoaderOSRS extends TextureLoader {
 	}
 
 	@Override
-	public void init(byte[] arg0) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
 	public void init(Archive archive) {
-		// TODO Auto-generated method stub
-		
 	}
-
-
-	
 
 }
