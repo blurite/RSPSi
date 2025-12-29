@@ -77,13 +77,8 @@ public class TextureLoaderOSRS extends TextureLoader {
 			if(file != null && file.getData() != null) {
 				log.info("Loading texture {}", file.getId());
 				Buffer buffer = new Buffer(file.getData());
-				buffer.skip(3);
-				int count = buffer.readUByte();
-				int[] texIds = new int[count];
-				for(int i = 0;i<count;i++) {
-					texIds[i] = buffer.readUShort();
-				}
-				Sprite sprite = Sprite.decode(ByteBuffer.wrap(spriteIndex.archive(texIds[0]).file(0).getData()));
+				int spriteId = buffer.readUnsignedShort();
+				Sprite sprite = Sprite.decode(ByteBuffer.wrap(spriteIndex.archive(spriteId).file(0).getData()));
 				if(sprite.getWidth() != 128 || sprite.getHeight() != 128)
 					sprite.resize(128, 128);
 				Texture texture = new SpriteTexture(sprite);

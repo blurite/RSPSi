@@ -103,7 +103,9 @@ public class AnimationDefinitionLoaderOSRS extends AnimationDefinitionLoader {
 				buffer.skip(count * 8);
 			} else if (opcode == 15) {
 				buffer.skip(4);
-			} else if (opcode == 17) {
+			} else if (opcode == 16) {
+                buffer.skip(1);
+            } else if (opcode == 17) {
 				int count = buffer.readUByte();
 				buffer.skip(count);
 			} else if (opcode == 18) {
