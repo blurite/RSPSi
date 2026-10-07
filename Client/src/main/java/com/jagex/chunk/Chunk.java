@@ -80,14 +80,16 @@ public class Chunk {
 
 	public int offsetX, offsetY;
 
-	public ImageGraphicsBuffer minimapImageBuffer = new ImageGraphicsBuffer(256, 256, rasterizer);
+	/** Allocated on first use, see {@link #getMinimapImageBuffer()}. */
+	private ImageGraphicsBuffer minimapImageBuffer;
 	
 	public int regionX, regionY;
 
 	private static int[] mapObjectX = new int[1000];
 	private static int[] mapObjectY = new int[1000];
 	private static byte[] mapObjectSelected = new byte[1000];
-	protected Sprite largeMinimapSprite = new Sprite(256, 256);
+	/** Allocated on first use, see {@link #getLargeMinimapSprite()}. */
+	private Sprite largeMinimapSprite;
 
 	private static Sprite[] mapObjectSprites = new Sprite[1000];
 	private ArrayDeque<AnimableObject> incompleteAnimables;
@@ -106,6 +108,42 @@ public class Chunk {
 	}
 
 	private boolean ready = false;
+
+	/**
+	 * The minimap buffers (about 0.5 MB per chunk) are only needed for the chunk the camera is in
+	 * and while the full map is visible, so they are created on demand.
+	 */
+	public ImageGraphicsBuffer getMinimapImageBuffer() {
+		if (minimapImageBuffer == null)
+			minimapImageBuffer = new ImageGraphicsBuffer(256, 256, rasterizer);
+		return minimapImageBuffer;
+	}
+
+	protected Sprite getLargeMinimapSprite() {
+		if (largeMinimapSprite == null)
+			largeMinimapSprite = new Sprite(256, 256);
+		return largeMinimapSprite;
+	}
+
+	/**
+	 * Frees the minimap buffers. They are recreated and redrawn the next time they are needed.
+	 */
+	public void releaseMinimap() {
+		minimapImageBuffer = null;
+		largeMinimapSprite = null;
+		updated = true;
+	}
+
+	/**
+	 * Call when this chunk is thrown away. The event bus holds a strong reference to every
+	 * registered subscriber, which would otherwise keep this chunk (and the scene graph and map
+	 * region it points to) in memory forever.
+	 */
+	public void dispose() {
+		if (EventBus.getDefault().isRegistered(this))
+			EventBus.getDefault().unregister(this);
+		releaseMinimap();
+	}
 
 	public void init(Client client) {
 
@@ -129,9 +167,9 @@ public class Chunk {
 	public void drawMinimap() {
 		if(!updated)
 			return;
-		minimapImageBuffer.initializeRasterizer();
+		getMinimapImageBuffer().initializeRasterizer();
 
-		largeMinimapSprite.drawSprite(rasterizer, 0, 0);
+		getLargeMinimapSprite().drawSprite(rasterizer, 0, 0);
 		
 			for (int j5 = 0; j5 < mapObjectCount; j5++) {
 				int k = mapObjectX[j5];
@@ -152,7 +190,7 @@ public class Chunk {
 		if(!updated)
 			return;
 
-        int[] raster = largeMinimapSprite.getRaster();
+        int[] raster = getLargeMinimapSprite().getRaster();
 		int pixels = raster.length;
 		for (int i = 0; i < pixels; i++) {
 			raster[i] = 0;
@@ -175,7 +213,7 @@ public class Chunk {
 		int j1 = ((238 + (int) (Math.random() * 0D)) - 10 << 16) + ((238 + (int) (Math.random() * 0D)) - 10 << 8)
 				+ ((238 + (int) (Math.random() * 0D)) - 10);
 		int l1 = (238 + (int) (Math.random() * 0D)) - 10 << 16;
-		largeMinimapSprite.initRaster(rasterizer);
+		getLargeMinimapSprite().initRaster(rasterizer);
 		if(Options.showObjects.get()) {
 			for (int y = 0; y < 64; y++) {
 				for (int x = 0; x < 64; x++) {
@@ -200,6 +238,7 @@ public class Chunk {
 						if(definition != null) {
 							if(definition.getAreaId() != -1) {
 								RSArea area = RSAreaLoader.get(definition.getAreaId());
+								try {
 								int function = area.getSpriteId();
 								
 								if (function >= 0) {
@@ -212,19 +251,23 @@ public class Chunk {
 									mapObjectY[mapObjectCount] = viewportY;
 									mapObjectCount++;
 								}
-							} else {
+							} catch (Exception e) {
+								}
+								}else {
+								try {
+									int function = definition.getMinimapFunction();
 
-								int function = definition.getMinimapFunction();
-			
-								if (function >= 0 && function < Client.mapFunctions.length) {
-									int viewportX = x;
-									int viewportY = y;
-			
-									mapObjectSprites[mapObjectCount] = Client.mapFunctions[function];
-									mapObjectSelected[mapObjectCount] = selected;
-									mapObjectX[mapObjectCount] = viewportX;
-									mapObjectY[mapObjectCount] = viewportY;
-									mapObjectCount++;
+									if (function >= 0 && function < Client.mapFunctions.length) {
+										int viewportX = x;
+										int viewportY = y;
+
+										mapObjectSprites[mapObjectCount] = Client.mapFunctions[function];
+										mapObjectSelected[mapObjectCount] = selected;
+										mapObjectX[mapObjectCount] = viewportX;
+										mapObjectY[mapObjectCount] = viewportY;
+										mapObjectCount++;
+									}
+								} catch (Exception e) {
 								}
 							}
 						}
@@ -320,7 +363,7 @@ public class Chunk {
 				colour = defaultColour;
 			}
 
-			int[] raster = largeMinimapSprite.getRaster();
+			int[] raster = getLargeMinimapSprite().getRaster();
 			int k4 = x * 4 + (63 - y) * 256 * 4;
 			ObjectDefinition definition = ObjectDefinitionLoader.lookup(id);
 
@@ -412,7 +455,7 @@ public class Chunk {
 					colour = 0xee0000;
 				}
 
-                int[] raster = largeMinimapSprite.getRaster();
+                int[] raster = getLargeMinimapSprite().getRaster();
 				int index = x * 4 + (63 - y) * 256 * 4;
 				if (orientation == 0 || orientation == 2) {
 					raster[index + 256 * 3] = colour;

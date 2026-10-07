@@ -5,6 +5,9 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.swing.JComponent;
@@ -14,7 +17,13 @@ import com.jagex.util.TextRenderUtils;
 
 public class RegionView extends JComponent {
 
-	private MapTile region;
+	/** Maximum number of regions that keep their rendered thumbnails; the rest are reloaded when scrolled back into view. */
+	private static final int MAX_CACHED_VIEWS = 1500;
+
+	/** Access-ordered, so the first entries are the least recently painted views. */
+	private static final Map<RegionView, Boolean> cachedViews = new LinkedHashMap<>(256, 0.75f, true);
+
+	private volatile MapTile region;
 	private boolean isHovered;
 	private boolean isSelected;
 	private int landscapeId = -1;
@@ -22,7 +31,38 @@ public class RegionView extends JComponent {
 	private int hash;
 	private int regionX;
 	private int regionY;
-	public BufferedImage[] images;
+	public volatile BufferedImage[] images;
+
+	/**
+	 * Called by the tile once its thumbnails are rendered. Stale results (the tile was replaced or
+	 * evicted in the meantime) are dropped.
+	 */
+	void setImages(MapTile tile, BufferedImage[] rendered) {
+		if (region != tile)
+			return;
+		images = rendered;
+		synchronized (cachedViews) {
+			cachedViews.put(this, Boolean.TRUE);
+			evictOldViews();
+		}
+		invalidate();
+	}
+
+	private static void evictOldViews() {
+		Iterator<RegionView> it = cachedViews.keySet().iterator();
+		while (cachedViews.size() > MAX_CACHED_VIEWS && it.hasNext()) {
+			RegionView view = it.next();
+			if (view.isOnScreen())
+				continue;
+			it.remove();
+			view.images = null;
+			view.region = null;
+		}
+	}
+
+	private boolean isOnScreen() {
+		return isShowing() && !getVisibleRect().isEmpty();
+	}
 
 	@Override
 	public void invalidate(){
@@ -55,10 +95,10 @@ public class RegionView extends JComponent {
 		Optional<MapTile> mapTile = MapTile.create(this, regionX, regionY);
 		if(!mapTile.isPresent())
 			return;
-		this.region = mapTile.get();
-		region.init();
-		this.landscapeId = region.landscapeId;
-		this.objectsId = region.objectsId;
+		MapTile tile = mapTile.get();
+		this.region = tile;
+		this.landscapeId = tile.landscapeId;
+		this.objectsId = tile.objectsId;
 	}
 
 	@Override
@@ -96,7 +136,9 @@ public class RegionView extends JComponent {
 						TextRenderUtils.renderCenter(g2d, "Y: " + (regionY * 64), 31, 43, Color.white.getRGB());
 					}
 				} else if(images == null) {
-					region.loadTile();
+					MapTile tile = region;
+						if(tile != null)
+							tile.loadTile();
 					g.setColor(java.awt.Color.black);
 					g.clearRect(0, 0, 64, 64);
 					g.setColor(java.awt.Color.black);
@@ -110,7 +152,12 @@ public class RegionView extends JComponent {
 
 				} else {
 					region = null;
-					g.drawImage(images[MapView.heightLevel.get()], 0, 0, this);
+					synchronized (cachedViews) {
+							cachedViews.get(this);//marks this view as recently used
+						}
+						BufferedImage[] shown = images;
+						if(shown != null && shown[MapView.heightLevel.get()] != null)
+							g.drawImage(shown[MapView.heightLevel.get()], 0, 0, this);
 					if(MapView.renderHash) {
 
 						TextRenderUtils.renderCenter(g2d, "HASH: " + hash, 32, 18, Color.black.getRGB());
@@ -142,8 +189,9 @@ public class RegionView extends JComponent {
 	}
 
 	public void deliverResource(ResourceResponse response) {
-		if(region != null && region.landscapeId == response.getRequest().getGroup()) {
-			region.onResourceResponse(response);
+		MapTile tile = region;
+		if(tile != null && tile.landscapeId == response.getRequest().getGroup()) {
+			tile.onResourceResponse(response);
 		}
 	}
 

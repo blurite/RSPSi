@@ -1,8 +1,13 @@
 package com.jagex.util;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import com.google.common.collect.Lists;
 import com.jagex.chunk.Chunk;
@@ -11,57 +16,49 @@ import com.rspsi.core.misc.Vector2;
 public class MultiMapEncoder {
 	
 	public static byte[] encode(List<Chunk> chunks) {
-		ByteBuffer buffer = ByteBuffer.allocate(5000000);//5mb
-		buffer.putInt(chunks.size());
-		for(Chunk chunk : chunks) {
-			if(chunk.hasLoaded()) {
-				byte[] objectMap = chunk.scenegraph.saveObjects(chunk);
-				byte[] tileMap = chunk.mapRegion.save_terrain_block(chunk);
-				
-				
-				buffer.putInt(chunk.objectMapId);
-				buffer.putInt(chunk.tileMapId);
-				
-				buffer.putInt(chunk.offsetX / 64);
-				buffer.putInt(chunk.offsetY / 64);
-				
-				buffer.putInt(objectMap.length);
-				buffer.put(objectMap);
-				
-				buffer.putInt(tileMap.length);
-				buffer.put(tileMap);
-				
-			}
-		}
-		
-		return Arrays.copyOf(buffer.array(), buffer.position());
+		return write(chunks, chunk -> chunk.scenegraph.saveObjects(chunk), chunk -> chunk.mapRegion.save_terrain_block(chunk));
 	}
-	
+
 	public static byte[] encodeShallow(List<Chunk> chunks) {
-		ByteBuffer buffer = ByteBuffer.allocate(5_000_000);//5mb
-		buffer.putInt(chunks.size());
-		for(Chunk chunk : chunks) {
-			if(chunk.hasLoaded()) {
-				byte[] objectMap = chunk.objectMapData;
-				byte[] tileMap = chunk.tileMapData;
-				
-				
-				buffer.putInt(chunk.objectMapId);
-				buffer.putInt(chunk.tileMapId);
-				
-				buffer.putInt(chunk.offsetX / 64);
-				buffer.putInt(chunk.offsetY / 64);
-				
-				buffer.putInt(objectMap.length);
-				buffer.put(objectMap);
-				
-				buffer.putInt(tileMap.length);
-				buffer.put(tileMap);
-				
-			}
+		return write(chunks, chunk -> chunk.objectMapData, chunk -> chunk.tileMapData);
+	}
+
+	/**
+	 * Writes every loaded chunk to a buffer that grows as needed, so packs of any size can be
+	 * encoded (a fixed buffer overflowed for large packs).
+	 */
+	private static byte[] write(List<Chunk> chunks, Function<Chunk, byte[]> objects, Function<Chunk, byte[]> tiles) {
+		List<Chunk> loaded = new ArrayList<>();
+		for (Chunk chunk : chunks) {
+			if (chunk.hasLoaded())
+				loaded.add(chunk);
 		}
-		
-		return Arrays.copyOf(buffer.array(), buffer.position());
+
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream(64 * 1024);
+		DataOutputStream out = new DataOutputStream(bytes);
+		try {
+			out.writeInt(loaded.size());
+			for (Chunk chunk : loaded) {
+				byte[] objectMap = objects.apply(chunk);
+				byte[] tileMap = tiles.apply(chunk);
+
+				out.writeInt(chunk.objectMapId);
+				out.writeInt(chunk.tileMapId);
+
+				out.writeInt(chunk.offsetX / 64);
+				out.writeInt(chunk.offsetY / 64);
+
+				out.writeInt(objectMap.length);
+				out.write(objectMap);
+
+				out.writeInt(tileMap.length);
+				out.write(tileMap);
+			}
+		} catch (IOException e) {
+			// writing to a ByteArrayOutputStream cannot fail
+			throw new UncheckedIOException(e);
+		}
+		return bytes.toByteArray();
 	}
 
 	public static Vector2 getSize(byte[] encoded) {

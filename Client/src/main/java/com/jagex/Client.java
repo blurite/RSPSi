@@ -385,7 +385,7 @@ public final class Client implements Runnable {
 				if(chunk != null) {
 					chunk.drawMinimapScene(Options.currentHeight.get());
 					chunk.drawMinimap();
-					chunk.minimapImageBuffer.finalize();
+					chunk.getMinimapImageBuffer().finalize();
 					
 					drawMinimapImage();
 					SceneGraph.minimapUpdate = false;
@@ -582,12 +582,25 @@ public final class Client implements Runnable {
 	
 	private Chunk lastChunk;
 
+	/**
+	 * Drops all current chunks. Each chunk is unregistered from the event bus first, otherwise the
+	 * bus keeps the old chunks and the scene graph they point to alive.
+	 */
+	private void discardChunks() {
+		for (Chunk chunk : chunks)
+			chunk.dispose();
+		chunks.clear();
+		for (Chunk chunk : pendingChunks)
+			chunk.dispose();
+		pendingChunks.clear();
+	}
+
 	public void loadCoordinates(int wX, int wY, int chunkXLength, int chunkYLength) {
 		baseX = wX;
 		baseY = wY;
 
 		fullMapCanvas = new DisplayCanvas(chunkXLength * Options.mapRegionSize.get(), chunkYLength * Options.mapRegionSize.get(), false);
-		chunks.clear();
+		discardChunks();
 		
 		gameImageBuffer.initializeRasterizer();
 		gameImageBuffer.clear(0);
@@ -661,7 +674,7 @@ public final class Client implements Runnable {
 		baseX = 0;
 		baseY = 0;
 		fullMapCanvas = new DisplayCanvas(chunkXLength * Options.mapRegionSize.get(), chunkYLength * Options.mapRegionSize.get(), false);
-		chunks.clear();
+		discardChunks();
 		
 		gameImageBuffer.initializeRasterizer();
 		gameImageBuffer.clear(0);
@@ -717,7 +730,7 @@ public final class Client implements Runnable {
 	
 
 	public void loadChunks(List<Chunk> chunks) {
-		this.chunks.clear();
+		discardChunks();
 
 		baseX = 0;
 		baseY = 0;
@@ -769,7 +782,7 @@ public final class Client implements Runnable {
 	}
 
 	public void loadFiles(byte[] landscapeBytes, byte[] objectBytes, int regionX, int regionY) {
-		chunks.clear();
+		discardChunks();
 
 		baseX = 0;
 		baseY = 0;
@@ -838,7 +851,7 @@ public final class Client implements Runnable {
 		}
 		} catch(Exception ex) {
 			ex.printStackTrace();
-			this.chunks.clear();
+			discardChunks();
 		
 			loadState = LoadState.ERROR;
 		
@@ -1201,7 +1214,7 @@ public final class Client implements Runnable {
 	
 	public void saveMinimapImage(File file) throws Exception {
 		final Chunk chunk = this.getCurrentChunk();
-		ImageIO.write(chunk.minimapImageBuffer.getImage(), "png", file);
+		ImageIO.write(chunk.getMinimapImageBuffer().getImage(), "png", file);
 	}
 	
 	public void saveMapFullImage(File file) throws Exception {
@@ -1212,9 +1225,9 @@ public final class Client implements Runnable {
 	
 	public void drawMinimapImage() {
 		final Chunk chunk = this.getCurrentChunk();
-		chunk.minimapImageBuffer.finalize();
+		chunk.getMinimapImageBuffer().finalize();
 		Platform.runLater(() -> {
-				mapCanvas.drawImage(chunk.minimapImageBuffer.getFXImage(), 0, 0);
+				mapCanvas.drawImage(chunk.getMinimapImageBuffer().getFXImage(), 0, 0);
 	
 		});
 	}
@@ -1230,8 +1243,15 @@ public final class Client implements Runnable {
 	public SimpleBooleanProperty fullMapVisible = new SimpleBooleanProperty();
 
 	public void drawMinimapFullImage() {
-		if (!fullMapVisible.get())
+		if (!fullMapVisible.get()) {
+			// only the chunk the camera is in still needs its minimap buffers
+			Chunk current = getCurrentChunk();
+			for (Chunk chunk : chunks) {
+				if (chunk != current)
+					chunk.releaseMinimap();
+			}
 			return;
+		}
 		System.out.println("RENDER FULL MAP");
 		Platform.runLater(() -> {
 			for (Chunk chunk : chunks) {
@@ -1241,13 +1261,13 @@ public final class Client implements Runnable {
 					chunk.drawMinimapScene(Options.currentHeight.get());
 					chunk.drawMinimap();
 					chunk.updated = false;
-					chunk.minimapImageBuffer.finalize();
+					chunk.getMinimapImageBuffer().finalize();
 
 					int mapScale = Options.mapRegionSize.get() / 64;
 					int xPos = chunk.offsetX * mapScale;
 					int yPos = (int) (fullMapCanvas.getHeight() - Options.mapRegionSize.get()
 							- (chunk.offsetY * mapScale));
-					fullMapCanvas.drawImage(chunk.minimapImageBuffer.getFXImage(), xPos, yPos);
+					fullMapCanvas.drawImage(chunk.getMinimapImageBuffer().getFXImage(), xPos, yPos);
 					if (Options.showBorders.get()) {
 						// XXX
 						fullMapCanvas.getGraphicsContext2D().setStroke(Color.RED);

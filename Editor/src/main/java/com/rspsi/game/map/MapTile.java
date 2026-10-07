@@ -15,13 +15,15 @@ import com.jagex.net.ResourceResponse;
 
 import com.rspsi.cache.CacheFileType;
 import net.coobird.thumbnailator.Thumbnails;
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
 
 public class MapTile {
 
-	private static final ExecutorService executorService = Executors.newCachedThreadPool();
+	/** Each render builds a full scene graph, so only a few may run at once; the rest wait in the queue. */
+	private static final ExecutorService executorService = Executors.newFixedThreadPool(4, runnable -> {
+		Thread thread = new Thread(runnable, "map-tile-render");
+		thread.setDaemon(true);
+		return thread;
+	});
 		private int hash;
 		private boolean loaded;
 		
@@ -35,32 +37,35 @@ public class MapTile {
 		private RegionView view;
 
 
-		@Subscribe(threadMode = ThreadMode.ASYNC)
+		/**
+		 * Called by {@link RegionView#deliverResource} (via the MapView's event subscription).
+		 * This class must not subscribe to the EventBus itself: the bus keeps a strong reference
+		 * to every subscriber, which kept every tile's scene graph in memory forever.
+		 */
 		public void onResourceResponse(ResourceResponse response) {
 			if(response.getRequest().getType() == CacheFileType.MAP) {
 				int fileId = response.getRequest().getGroup();
 				if(fileId == landscapeId) {
-					System.out.println("Delivered!");
 					landscapeBytes = response.decompress();
 					landscapeId = -1;
 					executorService.submit(() -> {
-						loadChunk();
-						generateImages();
+						// the heavy scene objects only live while this tile is being rendered
+						sceneGraph = new SceneGraph(64, 64, 4);
+						mapRegion = new MapRegion(sceneGraph, 64, 64);
+						try {
+							loadChunk();
+							generateImages();
+						} finally {
+							sceneGraph = null;
+							mapRegion = null;
+							landscapeBytes = null;
+						}
 					});
 
 				}
 			}
 		}
 
-		
-		
-		public void init() {
-			EventBus.getDefault().register(this);
-			sceneGraph = new SceneGraph(64, 64, 4);
-			mapRegion = new MapRegion(sceneGraph, 64, 64);
-			
-		}
-		
 		public int[] drawMinimapOriented(int plane) {
 			int pixels = 256 * 256;
             int[] raster = new int[pixels];
@@ -153,19 +158,19 @@ public class MapTile {
 		}
 
 		public void generateImages() {
-			view.images = new BufferedImage[4];
+			BufferedImage[] generated = new BufferedImage[4];
 			for(int z = 0;z<4;z++) {
 				int[] pixels = drawMinimapBasic(z);//ColourUtils.getARGB();
 				BufferedImage image = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);
 				
 				image.setRGB(0, 0, 256, 256, pixels, 0, 256);
 				try {
-					view.images[z] = Thumbnails.of(image).size(64, 64).asBufferedImage();
+					generated[z] = Thumbnails.of(image).size(64, 64).asBufferedImage();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
-			view.invalidate();
+			view.setImages(this, generated);
 		}
 		
 		public static boolean exists(int x, int y){

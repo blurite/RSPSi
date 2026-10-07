@@ -1211,8 +1211,10 @@ public final class MapRegion {
 					deco.setMinimapFunction(Client.mapFunctions[definition.getMinimapFunction()]);
 				} else if (deco != null && definition.getAreaId() >= 0 && definition.getModelIds() != null && definition.getModelIds()[0] == 111) {
 					RSArea area = RSAreaLoader.get(definition.getAreaId());
-					int func = area.getSpriteId();
-					deco.setMinimapFunction(Client.getSingleton().getCache().getSprite(func));
+					try {
+						int func = area.getSpriteId();
+						deco.setMinimapFunction(Client.getSingleton().getCache().getSprite(func));
+					}catch (Exception e) {}
 				}
 
 		} else if (type == 10 || type == 11) {

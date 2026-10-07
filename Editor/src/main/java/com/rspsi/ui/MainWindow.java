@@ -350,6 +350,13 @@ public class MainWindow extends Application {
 				mapView.initTiles();
 			});
 
+			RegionEditorWindow regionEditor = new RegionEditorWindow(packData -> Client.runLater.add(() -> {
+				clientInstance.loadChunks(MultiMapEncoder.decode(packData));
+				fullMapView.resizeMap();
+			}));
+			regionEditor.start(new Stage());
+			controller.getShowRegionEditor().setOnAction(evt -> regionEditor.show());
+
 
 
 			ChangeListenerUtil.addRangeListener(Options.rotation, 0, 3, true);
@@ -478,6 +485,35 @@ public class MainWindow extends Application {
 			clientInstance.fullMapVisible.bind(fullMapView.visibleProperty());
 
 			primaryStage.addEventHandler(KeyEvent.ANY, gameKeyListener);
+			// Filter (capture phase) so Enter/Esc reach the path tool whichever control has focus
+			primaryStage.addEventFilter(KeyEvent.KEY_PRESSED, evt -> {
+				ToolType tool = Options.currentTool.get();
+				if ((tool != ToolType.PAINT_PATH && tool != ToolType.MOUNTAIN && tool != ToolType.COAST
+							&& tool != ToolType.BRIDGE)
+						|| primaryStage.getScene().getFocusOwner() instanceof javafx.scene.control.TextInputControl)
+					return;
+				if (evt.getCode() == javafx.scene.input.KeyCode.ENTER) {
+					if (tool == ToolType.MOUNTAIN)
+						SceneGraph.applyMountain();
+					else if (tool == ToolType.BRIDGE)
+						SceneGraph.applyBridgeLine();
+					else if (tool == ToolType.COAST)
+						SceneGraph.applyCoast();
+					else
+						SceneGraph.applyPath();
+					evt.consume();
+				} else if (evt.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
+					if (tool == ToolType.MOUNTAIN)
+						SceneGraph.cancelMountain();
+					else if (tool == ToolType.BRIDGE)
+						SceneGraph.cancelBridge();
+					else if (tool == ToolType.COAST)
+						SceneGraph.cancelCoast();
+					else
+						SceneGraph.cancelPath();
+					evt.consume();
+				}
+			});
 			primaryStage.focusedProperty().addListener((observable, oldValue, newValue) -> {
 				if(!newValue){
 					log.info("Lost focus!");

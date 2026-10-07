@@ -15,6 +15,10 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.rspsi.options.*;
+import com.rspsi.tools.BridgeShaper;
+import com.rspsi.tools.CoastShaper;
+import com.rspsi.tools.MountainGenerator;
+import com.rspsi.tools.PathOverlayFitter;
 import javafx.scene.input.KeyCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
@@ -111,6 +115,14 @@ public class SceneGraph {
 	public static boolean ctrlDown;
 	public static boolean mouseWasDown;
 	public static boolean altDown;
+	/** Waypoints (tile centres) of the path being drawn with the path tool. */
+	private static final List<double[]> pathPoints = new ArrayList<>();
+	private static boolean pathClickLatch;
+	/** Points of the mountain range being drawn with the mountain tool. */
+	private static final List<double[]> mountainPoints = new ArrayList<>();
+	/** Waypoints (tile centres) of the coast line being drawn with the coast tool. */
+	private static final List<double[]> coastPoints = new ArrayList<>();
+	private static final List<double[]> bridgePoints = new ArrayList<>();
 	static boolean mouseIsDown;
 	static int anInt446;
 	static int currentCameraPlane;
@@ -311,6 +323,7 @@ public class SceneGraph {
 	public static void setMouseIsDown(boolean clicked) {
 		if (!clicked) {
 			commitChanges();
+			pathClickLatch = false;
 		}
 		if (SceneGraph.mouseIsDown && !clicked) {
 			SceneGraph.clickStartX = -1;
@@ -1736,6 +1749,57 @@ public class SceneGraph {
 							});
 
 
+				}
+				break;
+
+				case MOUNTAIN: {
+					this.resetTiles();
+					if (mouseIsDown && !pathClickLatch) {
+						pathClickLatch = true;
+						if (Options.mountainRange.get()) {
+							double[] last = mountainPoints.isEmpty() ? null : mountainPoints.get(mountainPoints.size() - 1);
+							if (last == null || last[0] != tileX || last[1] != tileY)
+								mountainPoints.add(new double[] { tileX, tileY });
+						} else {
+							final int centerX = tileX, centerY = tileY;
+							onCycleEnd.add(() -> Client.getSingleton().sceneGraph.applyHill(centerX, centerY));
+						}
+					}
+					previewMountain(plane, tileX, tileY);
+				}
+				break;
+
+				case COAST: {
+					this.resetTiles();
+					if (mouseIsDown && !pathClickLatch) {
+						pathClickLatch = true;
+						double[] last = coastPoints.isEmpty() ? null : coastPoints.get(coastPoints.size() - 1);
+						if (last == null || last[0] != tileX + 0.5 || last[1] != tileY + 0.5)
+							coastPoints.add(new double[] { tileX + 0.5, tileY + 0.5 });
+					}
+					previewCoast(plane, tileX, tileY);
+				}
+				break;
+
+				case BRIDGE: {
+					this.resetTiles();
+					if (mouseIsDown && !pathClickLatch) {
+						pathClickLatch = true;
+						double[] last = bridgePoints.isEmpty() ? null : bridgePoints.get(bridgePoints.size() - 1);
+						if (last == null || last[0] != tileX + 0.5 || last[1] != tileY + 0.5)
+							bridgePoints.add(new double[] { tileX + 0.5, tileY + 0.5 });
+					}
+					previewBridge(plane, tileX, tileY);
+				}
+				break;
+
+				case PAINT_PATH: {
+					this.resetTiles();
+					if (mouseIsDown && !pathClickLatch) {
+						pathClickLatch = true;
+						addPathPoint(tileX, tileY);
+					}
+					previewPath(plane, tileX, tileY);
 				}
 				break;
 
@@ -4950,6 +5014,553 @@ public class SceneGraph {
 
 		SceneGraph.commitChanges();
 		Options.currentTool.set(currentTool);
+	}
+
+	private static void addPathPoint(int tileX, int tileY) {
+		double[] last = pathPoints.isEmpty() ? null : pathPoints.get(pathPoints.size() - 1);
+		if (last == null || last[0] != tileX + 0.5 || last[1] != tileY + 0.5)
+			pathPoints.add(new double[] { tileX + 0.5, tileY + 0.5 });
+	}
+
+
+	private List<double[]> pathLine(int tileX, int tileY) {
+		List<double[]> points = new ArrayList<>(pathPoints);
+		if (tileX >= 0 && tileY >= 0)
+			points.add(new double[] { tileX + 0.5, tileY + 0.5 });
+		List<double[]> line = Options.pathSmoothCurve.get() ? PathOverlayFitter.smooth(points) : points;
+		return line;
+	}
+
+	private Map<Integer, PathOverlayFitter.Fit> fitPath(int tileX, int tileY) {
+		return PathOverlayFitter.fit(pathLine(tileX, tileY), Options.pathWidth.get(), width, length,
+				Options.pathEdgeSmoothing.get());
+	}
+
+	private void previewPath(int plane, int tileX, int tileY) {
+		fitPath(tileX, tileY).forEach((key, fit) -> addTemporaryTile(plane, PathOverlayFitter.tileX(key),
+				PathOverlayFitter.tileY(key), fit.shape, fit.rotation, -1, 0, 9997965));
+	}
+
+	public static void cancelPath() {
+		pathPoints.clear();
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.resetTiles());
+	}
+
+	/** Writes the drawn path to the map as overlay tiles; must run on the render cycle, see {@link #onCycleEnd}. */
+	public static void applyPath() {
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.applyPathToMap());
+	}
+
+	private void applyPathToMap() {
+		int overlayId = Options.overlayPaintId.get();
+		if (pathPoints.isEmpty() || overlayId <= 0)
+			return;
+		int plane = Options.currentHeight.get();
+		List<double[]> line = pathLine(-1, -1);
+		Map<Integer, PathOverlayFitter.Fit> fits = PathOverlayFitter.fit(line, Options.pathWidth.get(), width, length,
+				Options.pathEdgeSmoothing.get());
+		pathPoints.clear();
+		this.resetTiles();
+
+		writeOverlayFits(fits, overlayId, plane);
+
+		if (Options.pathSmoothHeight.get())
+			smoothPathHeights(line, plane);
+	}
+
+	/** Writes fitted overlay tiles to the map as one undo step. */
+	private void writeOverlayFits(Map<Integer, PathOverlayFitter.Fit> fits, int overlayId, int plane) {
+		ToolType currentTool = Options.currentTool.get();
+		Options.currentTool.set(ToolType.PAINT_OVERLAY);
+		if (!this.currentStateCorrect()) {
+			initChanges();
+		}
+
+		fits.forEach((key, fit) -> {
+			int x = PathOverlayFitter.tileX(key);
+			int y = PathOverlayFitter.tileY(key);
+			if (currentState.isPresent()) {
+				OverlayState tileState = new OverlayState(x, y, plane);
+				tileState.preserve();
+				((TileChange<OverlayState>) currentState.get()).preserveTileState(tileState);
+			}
+			this.getMapRegion().overlays[plane][x][y] = (short) overlayId;
+			this.getMapRegion().overlayShapes[plane][x][y] = (byte) (fit.shape - 1);
+			this.getMapRegion().overlayOrientations[plane][x][y] = (byte) fit.rotation;
+			this.tiles[plane][x][y].hasUpdated = true;
+		});
+
+		getMapRegion().updateTiles();
+
+		SceneGraph.commitChanges();
+		Options.currentTool.set(currentTool);
+	}
+
+	/**
+	 * Evens out the terrain under a path by repeatedly blending every height point of the path with its neighbours.
+	 * Points around the path are left alone, so the path blends into the surrounding terrain. Stored as its own
+	 * undo step.
+	 */
+	private void smoothPathHeights(List<double[]> line, int plane) {
+		int passes = (int) Math.round(Options.pathHeightSmoothing.get());
+		if (passes <= 0 || line.isEmpty())
+			return;
+
+		// the path itself plus a blend zone around it, so the terrain next to the path slopes gradually
+		double reach = Options.pathWidth.get() / 2.0 + 1.5 + Options.pathHeightBlend.get();
+		double lineMinX = Double.MAX_VALUE, lineMinY = Double.MAX_VALUE, lineMaxX = -Double.MAX_VALUE, lineMaxY = -Double.MAX_VALUE;
+		for (double[] p : line) {
+			lineMinX = Math.min(lineMinX, p[0]);
+			lineMinY = Math.min(lineMinY, p[1]);
+			lineMaxX = Math.max(lineMaxX, p[0]);
+			lineMaxY = Math.max(lineMaxY, p[1]);
+		}
+		Set<Integer> vertexKeys = new HashSet<>();
+		int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = 0, maxY = 0;
+		for (int vx = Math.max(0, (int) (lineMinX - reach)); vx <= Math.min(width - 1, (int) (lineMaxX + reach) + 1); vx++) {
+			for (int vy = Math.max(0, (int) (lineMinY - reach)); vy <= Math.min(length - 1, (int) (lineMaxY + reach) + 1); vy++) {
+				if (PathOverlayFitter.distanceToPath(line, vx, vy) <= reach) {
+					vertexKeys.add(vx << 16 | vy);
+					minX = Math.min(minX, vx);
+					minY = Math.min(minY, vy);
+					maxX = Math.max(maxX, vx);
+					maxY = Math.max(maxY, vy);
+				}
+			}
+		}
+		if (vertexKeys.isEmpty())
+			return;
+
+		ToolType currentTool = Options.currentTool.get();
+		Options.currentTool.set(ToolType.MODIFY_HEIGHT);
+		if (!this.currentStateCorrect()) {
+			initChanges();
+		}
+
+		int[][] heights = getMapRegion().tileHeights[plane];
+		int[][] original = new int[heights.length][];
+		for (int x = 0; x < heights.length; x++)
+			original[x] = heights[x].clone();
+
+		for (int key : vertexKeys) {
+			int x = PathOverlayFitter.tileX(key);
+			int y = PathOverlayFitter.tileY(key);
+			if (currentState.isPresent()) {
+				for (int z = plane; z < 4; z++) {
+					HeightState state = new HeightState(x, y, z);
+					state.preserve();
+					((TileChange<HeightState>) currentState.get()).preserveTileState(state);
+				}
+			}
+		}
+
+		for (int pass = 0; pass < passes; pass++) {
+			int[][] previous = new int[heights.length][];
+			for (int x = 0; x < heights.length; x++)
+				previous[x] = heights[x].clone();
+			for (int key : vertexKeys) {
+				int x = PathOverlayFitter.tileX(key);
+				int y = PathOverlayFitter.tileY(key);
+				int total = 0;
+				int count = 0;
+				for (int xMod = x - 1; xMod <= x + 1; xMod++) {
+					for (int yMod = y - 1; yMod <= y + 1; yMod++) {
+						if (xMod >= 0 && yMod >= 0 && xMod < width && yMod < length) {
+							total += previous[xMod][yMod];
+							count++;
+						}
+					}
+				}
+				heights[x][y] = (previous[x][y] + total / count) / 2;
+			}
+		}
+
+		for (int key : vertexKeys) {
+			int x = PathOverlayFitter.tileX(key);
+			int y = PathOverlayFitter.tileY(key);
+			heights[x][y] = Math.min(heights[x][y], 0);
+			int diff = heights[x][y] - original[x][y];
+			getMapRegion().manualTileHeight[plane][x][y] = 1;
+			for (int z = plane + 1; z < 4; z++) {
+				getMapRegion().tileHeights[z][x][y] += diff;
+			}
+			for (int z = 1; z < 4; z++) {
+				if (getMapRegion().tileHeights[z][x][y] > getMapRegion().tileHeights[z - 1][x][y])
+					getMapRegion().tileHeights[z][x][y] = getMapRegion().tileHeights[z - 1][x][y];
+			}
+			for (int tx = Math.max(x - 1, 0); tx <= x; tx++) {
+				for (int ty = Math.max(y - 1, 0); ty <= y; ty++) {
+					for (int z = 0; z < 4; z++) {
+						if (tiles[z][tx][ty] != null)
+							tiles[z][tx][ty].hasUpdated = true;
+					}
+				}
+			}
+		}
+
+		getMapRegion().setHeights();//For beyond edge updates
+		tileQueue.clear();
+		this.shadeObjects(64, -50, -10, -50, 768);
+		getMapRegion().updateTiles();
+		this.updateHeights(minX - 3, minY - 3, maxX - minX + 3, maxY - minY + 3);
+		SceneGraph.commitChanges();
+		Options.currentTool.set(currentTool);
+	}
+
+	// ---- coast tool ----
+
+	private static CoastShaper.Params coastParams() {
+		CoastShaper.Params p = new CoastShaper.Params();
+		p.seaLeft = Options.coastSeaLeft.get();
+		p.seaWidth = Options.coastSeaWidth.get();
+		p.cliff = Options.coastCliff.get();
+		p.beachWidth = Options.coastBeachWidth.get();
+		p.cliffHeight = Options.coastCliffHeight.get();
+		p.cliffWidth = Options.coastCliffWidth.get();
+		p.plateauDepth = Options.coastPlateauDepth.get();
+		return p;
+	}
+
+	private List<double[]> coastLine(int tileX, int tileY) {
+		List<double[]> points = new ArrayList<>(coastPoints);
+		if (tileX >= 0 && tileY >= 0)
+			points.add(new double[] { tileX + 0.5, tileY + 0.5 });
+		return CoastShaper.meander(PathOverlayFitter.smooth(points), Options.coastIrregularity.get(),
+				Options.coastSeed.get());
+	}
+
+	private Map<Integer, PathOverlayFitter.Fit> fitCoastSea(List<double[]> line) {
+		CoastShaper.Params p = coastParams();
+		return PathOverlayFitter.fit(CoastShaper.shiftToSea(line, p.seaWidth / 2.0, p.seaLeft), p.seaWidth, width,
+				length, Options.coastEdgeSmoothing.get());
+	}
+
+	/** Shows the sea strip (the part that gets the overlay) next to the coast line. */
+	private void previewCoast(int plane, int tileX, int tileY) {
+		if (coastPoints.isEmpty())
+			return;
+		fitCoastSea(coastLine(tileX, tileY)).forEach((key, fit) -> addTemporaryTile(plane,
+				PathOverlayFitter.tileX(key), PathOverlayFitter.tileY(key), fit.shape, fit.rotation, -1, 0, 9997965));
+	}
+
+	public static void cancelCoast() {
+		coastPoints.clear();
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.resetTiles());
+	}
+
+	/** Enter: writes the sea overlay and reshapes the terrain along the coast; runs on the render cycle. */
+	public static void applyCoast() {
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.applyCoastToMap());
+	}
+
+	private void applyCoastToMap() {
+		int overlayId = Options.overlayPaintId.get();
+		if (coastPoints.size() < 2 || overlayId <= 0)
+			return;
+		int plane = Options.currentHeight.get();
+		List<double[]> line = coastLine(-1, -1);
+		Map<Integer, PathOverlayFitter.Fit> fits = fitCoastSea(line);
+		Map<Integer, Integer> heightChanges = CoastShaper.shape(line, coastParams(), getMapRegion().tileHeights[plane]);
+		coastPoints.clear();
+		this.resetTiles();
+
+		writeOverlayFits(fits, overlayId, plane);
+		applyMountainHeights(heightChanges);
+	}
+
+	// ---- mountain generator ----
+
+	private static MountainGenerator.Params mountainParams() {
+		MountainGenerator.Params p = new MountainGenerator.Params();
+		p.height = Options.mountainHeight.get();
+		p.size = Options.mountainSize.get();
+		p.octaves = (int) Math.round(Options.mountainOctaves.get());
+		p.irregularity = Options.mountainIrregularity.get();
+		p.blend = Options.mountainBlend.get();
+		p.steepness = Options.mountainSteepness.get();
+		p.peakVariation = Options.mountainPeakVariation.get();
+		p.cliff = Options.mountainCliff.get();
+		p.cliffLevel = Options.mountainCliffLevel.get();
+		p.cliffWidth = Options.mountainCliffWidth.get();
+		p.seed = Options.mountainSeed.get();
+		return p;
+	}
+
+	private List<double[]> mountainLine(int tileX, int tileY) {
+		List<double[]> points = new ArrayList<>(mountainPoints);
+		if (tileX >= 0 && tileY >= 0 && (points.isEmpty() || points.get(points.size() - 1)[0] != tileX
+				|| points.get(points.size() - 1)[1] != tileY))
+			points.add(new double[] { tileX, tileY });
+		return PathOverlayFitter.smooth(points);
+	}
+
+	/** Shows where the mountain will come: the centre line of a range, or the outline of a hill. */
+	private void previewMountain(int plane, int tileX, int tileY) {
+		Set<Integer> marked = new HashSet<>();
+		if (Options.mountainRange.get()) {
+			List<double[]> line = mountainLine(tileX, tileY);
+			for (double[] p : line) {
+				int x = (int) Math.floor(p[0]), y = (int) Math.floor(p[1]);
+				if (x >= 0 && y >= 0 && x < width && y < length)
+					marked.add(x << 16 | y);
+			}
+		} else {
+			Set<Integer> footprint = MountainGenerator.shapeTiles(Options.mountainShape, tileX, tileY,
+					Options.mountainSize.get(), width - 1, length - 1);
+			// only the outline, to keep the preview cheap
+			for (int key : footprint) {
+				int x = PathOverlayFitter.tileX(key), y = PathOverlayFitter.tileY(key);
+				if (!footprint.contains((x + 1) << 16 | y) || !footprint.contains((x - 1) << 16 | y)
+						|| !footprint.contains(x << 16 | (y + 1)) || !footprint.contains(x << 16 | (y - 1)))
+					marked.add(key);
+			}
+			marked.add(tileX << 16 | tileY);
+		}
+		for (int key : marked)
+			addTemporaryTile(plane, PathOverlayFitter.tileX(key), PathOverlayFitter.tileY(key), 1, 0, -1, 0, 9997965);
+	}
+
+	public static void cancelMountain() {
+		mountainPoints.clear();
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.resetTiles());
+	}
+
+	/** Enter: applies the range being drawn, or the hill on the selected tiles; runs on the render cycle. */
+	public static void applyMountain() {
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.applyMountainToMap());
+	}
+
+	private void applyHill(int centerX, int centerY) {
+		MountainGenerator.Params params = mountainParams();
+		Set<Integer> footprint = MountainGenerator.shapeTiles(Options.mountainShape, centerX, centerY, params.size,
+				width - 1, length - 1);
+		applyMountainHeights(MountainGenerator.area(footprint, params, width - 1, length - 1));
+	}
+
+	private void applyMountainToMap() {
+		MountainGenerator.Params params = mountainParams();
+		if (Options.mountainRange.get()) {
+			List<double[]> line = mountainLine(-1, -1);
+			mountainPoints.clear();
+			this.resetTiles();
+			applyMountainHeights(MountainGenerator.ridge(line, params, width - 1, length - 1));
+		} else {
+			Set<Integer> selection = new HashSet<>();
+			for (SceneTile tile : getSelectedTiles())
+				selection.add(tile.positionX << 16 | tile.positionY);
+			this.resetTiles();
+			applyMountainHeights(MountainGenerator.area(selection, params, width - 1, length - 1));
+		}
+	}
+
+	/**
+	 * Adds the given height changes (negative = higher) on top of the current terrain of the selected height level
+	 * and shifts the levels above along, like the height tool. Stored as one undo step.
+	 */
+	private void applyMountainHeights(Map<Integer, Integer> changes) {
+		if (changes.isEmpty())
+			return;
+		int plane = Options.currentHeight.get();
+		int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = 0, maxY = 0;
+		for (int key : changes.keySet()) {
+			minX = Math.min(minX, PathOverlayFitter.tileX(key));
+			minY = Math.min(minY, PathOverlayFitter.tileY(key));
+			maxX = Math.max(maxX, PathOverlayFitter.tileX(key));
+			maxY = Math.max(maxY, PathOverlayFitter.tileY(key));
+		}
+
+		ToolType currentTool = Options.currentTool.get();
+		Options.currentTool.set(ToolType.MODIFY_HEIGHT);
+		if (!this.currentStateCorrect()) {
+			initChanges();
+		}
+
+		int[][] heights = getMapRegion().tileHeights[plane];
+		for (int key : changes.keySet()) {
+			int x = PathOverlayFitter.tileX(key);
+			int y = PathOverlayFitter.tileY(key);
+			if (currentState.isPresent()) {
+				for (int z = plane; z < 4; z++) {
+					HeightState state = new HeightState(x, y, z);
+					state.preserve();
+					((TileChange<HeightState>) currentState.get()).preserveTileState(state);
+				}
+			}
+		}
+
+		for (Map.Entry<Integer, Integer> change : changes.entrySet()) {
+			int x = PathOverlayFitter.tileX(change.getKey());
+			int y = PathOverlayFitter.tileY(change.getKey());
+			int before = heights[x][y];
+			heights[x][y] = Math.min(before + change.getValue(), 0);
+			int diff = heights[x][y] - before;
+			getMapRegion().manualTileHeight[plane][x][y] = 1;
+			for (int z = plane + 1; z < 4; z++) {
+				getMapRegion().tileHeights[z][x][y] += diff;
+			}
+			for (int z = 1; z < 4; z++) {
+				if (getMapRegion().tileHeights[z][x][y] > getMapRegion().tileHeights[z - 1][x][y])
+					getMapRegion().tileHeights[z][x][y] = getMapRegion().tileHeights[z - 1][x][y];
+			}
+			for (int tx = Math.max(x - 1, 0); tx <= x; tx++) {
+				for (int ty = Math.max(y - 1, 0); ty <= y; ty++) {
+					for (int z = 0; z < 4; z++) {
+						if (tiles[z][tx][ty] != null)
+							tiles[z][tx][ty].hasUpdated = true;
+					}
+				}
+			}
+		}
+
+		getMapRegion().setHeights();//For beyond edge updates
+		tileQueue.clear();
+		this.shadeObjects(64, -50, -10, -50, 768);
+		getMapRegion().updateTiles();
+		this.updateHeights(minX - 3, minY - 3, maxX - minX + 3, maxY - minY + 3);
+		SceneGraph.commitChanges();
+		Options.currentTool.set(currentTool);
+	}
+
+	// ---- bridge tool ----
+
+	private static BridgeShaper.Params bridgeParams() {
+		BridgeShaper.Params p = new BridgeShaper.Params();
+		p.rampWidth = (int) Math.round(Options.bridgeRamp.get());
+		p.deckHeight = Options.bridgeAutoHeight.get() ? BridgeShaper.AUTO : -(int) Math.round(Options.bridgeDeckHeight.get());
+		p.arc = (int) Math.round(Options.bridgeArc.get());
+		return p;
+	}
+
+	private List<double[]> bridgeLine(int tileX, int tileY) {
+		List<double[]> points = new ArrayList<>(bridgePoints);
+		if (tileX >= 0 && tileY >= 0)
+			points.add(new double[] { tileX + 0.5, tileY + 0.5 });
+		return points;
+	}
+
+	/** Shows the deck (the tiles that get the overlay) and the ramp around it, as it will come out. */
+	private void previewBridge(int plane, int tileX, int tileY) {
+		if (bridgePoints.isEmpty() || plane >= 3)
+			return;
+		List<double[]> line = bridgeLine(tileX, tileY);
+		Set<Integer> deck = BridgeShaper.deckTiles(line, Options.bridgeWidth.get(), width, length);
+		BridgeShaper.Result bridge = BridgeShaper.shape(deck, line, getMapRegion().tileHeights[plane],
+				getMapRegion().tileHeights[plane + 1], bridgeParams());
+		bridge.ramp.keySet().forEach(key -> {
+			if (PathOverlayFitter.tileX(key) < width && PathOverlayFitter.tileY(key) < length)
+				addTemporaryTile(plane, PathOverlayFitter.tileX(key), PathOverlayFitter.tileY(key), 1, 0, -1, 0, 62000);
+		});
+		deck.forEach(key -> addTemporaryTile(plane, PathOverlayFitter.tileX(key), PathOverlayFitter.tileY(key), 1, 0,
+				-1, 0, 9997965));
+	}
+
+	public static void cancelBridge() {
+		bridgePoints.clear();
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.resetTiles());
+	}
+
+	/** Enter: builds the bridge along the drawn line; runs on the render cycle. */
+	public static void applyBridgeLine() {
+		onCycleEnd.add(() -> Client.getSingleton().sceneGraph.applyBridgeToMap());
+	}
+
+	private void applyBridgeToMap() {
+		int plane = Options.currentHeight.get();
+		if (bridgePoints.isEmpty() || plane >= 3)
+			return;
+		List<double[]> line = bridgeLine(-1, -1);
+		Set<Integer> deck = BridgeShaper.deckTiles(line, Options.bridgeWidth.get(), width, length);
+		bridgePoints.clear();
+		this.resetTiles();
+		applyBridge(deck, line, plane, bridgeParams(), Math.max(Options.overlayPaintId.get(), 0), 1,
+				Options.bridgeFlag.get());
+	}
+
+	/**
+	 * Builds a bridge on the level above {@code lowerPlane}: a deck on the given tiles and a ramp around it. {@code
+	 * line} is the line the bridge was drawn along (it sets the height profile). The overlay is only touched when
+	 * {@code overlayId} is above 0. Heights, overlays and flags are stored together as one undo step.
+	 */
+	public void applyBridge(Set<Integer> deckTiles, List<double[]> line, int lowerPlane, BridgeShaper.Params params,
+			int overlayId, int overlayShape, boolean bridgeFlag) {
+		int plane = lowerPlane + 1;
+		BridgeShaper.Result bridge = BridgeShaper.shape(deckTiles, line, getMapRegion().tileHeights[lowerPlane],
+				getMapRegion().tileHeights[plane], params);
+		if (bridge.deck.isEmpty())
+			return;
+
+		// heights belong to tile corners; the corners on the far edge of the map are copied by setHeights()
+		Map<Integer, Integer> heights = new HashMap<>(bridge.ramp);
+		heights.putAll(bridge.deck);
+		heights.keySet().removeIf(key -> PathOverlayFitter.tileX(key) >= width || PathOverlayFitter.tileY(key) >= length);
+
+		Set<Integer> touched = new HashSet<>(heights.keySet());
+		touched.addAll(deckTiles);
+
+		ToolType currentTool = Options.currentTool.get();
+		Options.currentTool.set(ToolType.IMPORT_SELECTION);
+		try {
+			if (!this.currentStateCorrect()) {
+				initChanges();
+			}
+
+			for (int key : touched) {
+				if (currentState.isPresent()) {
+					ImportTileState state = new ImportTileState(PathOverlayFitter.tileX(key), PathOverlayFitter.tileY(key), plane);
+					state.preserve();
+					((TileChange<ImportTileState>) currentState.get()).preserveTileState(state);
+				}
+			}
+
+			int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = 0, maxY = 0;
+			for (Map.Entry<Integer, Integer> entry : heights.entrySet()) {
+				int x = PathOverlayFitter.tileX(entry.getKey());
+				int y = PathOverlayFitter.tileY(entry.getKey());
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+
+				getMapRegion().tileHeights[plane][x][y] = entry.getValue();
+				getMapRegion().manualTileHeight[plane][x][y] = 1;
+				for (int z = plane + 1; z < 4; z++) {
+					if (getMapRegion().tileHeights[z][x][y] > getMapRegion().tileHeights[z - 1][x][y])
+						getMapRegion().tileHeights[z][x][y] = getMapRegion().tileHeights[z - 1][x][y];
+				}
+
+				for (int tx = Math.max(x - 1, 0); tx <= x; tx++) {
+					for (int ty = Math.max(y - 1, 0); ty <= y; ty++) {
+						for (int z = 0; z < 4; z++) {
+							if (tiles[z][tx][ty] != null)
+								tiles[z][tx][ty].hasUpdated = true;
+						}
+					}
+				}
+			}
+
+			for (int key : deckTiles) {
+				int x = PathOverlayFitter.tileX(key);
+				int y = PathOverlayFitter.tileY(key);
+				if (overlayId > 0) {
+					getMapRegion().overlays[plane][x][y] = (short) overlayId;
+					getMapRegion().overlayShapes[plane][x][y] = (byte) (overlayShape - 1);
+					getMapRegion().overlayOrientations[plane][x][y] = 0;
+				}
+				if (bridgeFlag)
+					getMapRegion().tileFlags[plane][x][y] |= RenderFlags.BRIDGE_TILE.getBit();
+				if (tiles[plane][x][y] != null)
+					tiles[plane][x][y].hasUpdated = true;
+			}
+
+			getMapRegion().setHeights();//For beyond edge updates
+			tileQueue.clear();
+			this.shadeObjects(64, -50, -10, -50, 768);
+			getMapRegion().updateTiles();
+			this.updateHeights(minX - 3, minY - 3, maxX - minX + 3, maxY - minY + 3);
+			SceneGraph.commitChanges();
+		} finally {
+			Options.currentTool.set(currentTool);
+		}
 	}
 
 	public void setTileOverlays(List<SceneTile> tiles) {

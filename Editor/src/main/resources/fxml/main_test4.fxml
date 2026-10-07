@@ -137,6 +137,54 @@
                                           </Tooltip>
                                        </tooltip>
                                     </ToggleButton>
+                                    <ToggleButton fx:id="paintPathBtn" accessibleHelp="Paint Path" focusTraversable="false" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0" text="P_P" toggleGroup="$toolGroup">
+                                       <font>
+                                          <Font name="JetBrains Mono Regular" size="8.0" />
+                                       </font>
+                                       <tooltip>
+                                          <Tooltip text="Paint Overlay Path (click points, Enter = apply, Esc = cancel, width = brush size)">
+                                             <font>
+                                                <Font name="JetBrains Mono Regular" size="13.0" />
+                                             </font>
+                                          </Tooltip>
+                                       </tooltip>
+                                    </ToggleButton>
+                                    <ToggleButton fx:id="mountainBtn" accessibleHelp="Mountain" focusTraversable="false" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0" text="MTN" toggleGroup="$toolGroup">
+                                       <font>
+                                          <Font name="JetBrains Mono Regular" size="8.0" />
+                                       </font>
+                                       <tooltip>
+                                          <Tooltip text="Mountain generator (hill: click = centre, Enter = apply to selection | range: click points, Enter = apply, Esc = cancel; settings in the Mountain tab)">
+                                             <font>
+                                                <Font name="JetBrains Mono Regular" size="13.0" />
+                                             </font>
+                                          </Tooltip>
+                                       </tooltip>
+                                    </ToggleButton>
+                                    <ToggleButton fx:id="coastBtn" accessibleHelp="Coast" focusTraversable="false" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0" text="CST" toggleGroup="$toolGroup">
+                                       <font>
+                                          <Font name="JetBrains Mono Regular" size="8.0" />
+                                       </font>
+                                       <tooltip>
+                                          <Tooltip text="Coast (click points along the waterline, Enter = apply, Esc = cancel; beach or cliff in the Coast tab)">
+                                             <font>
+                                                <Font name="JetBrains Mono Regular" size="13.0" />
+                                             </font>
+                                          </Tooltip>
+                                       </tooltip>
+                                    </ToggleButton>
+                                    <ToggleButton fx:id="bridgeBtn" accessibleHelp="Bridge" focusTraversable="false" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0" text="BRG" toggleGroup="$toolGroup">
+                                       <font>
+                                          <Font name="JetBrains Mono Regular" size="8.0" />
+                                       </font>
+                                       <tooltip>
+                                          <Tooltip text="Bridge (click points along the bridge, Enter = build, Esc = cancel; settings in the Bridge tab)">
+                                             <font>
+                                                <Font name="JetBrains Mono Regular" size="13.0" />
+                                             </font>
+                                          </Tooltip>
+                                       </tooltip>
+                                    </ToggleButton>
                                  </children>
                                  <padding>
                                     <Insets top="12.0" />
@@ -305,7 +353,7 @@
                         </HBox>
                      </children>
                   </VBox>
-                  <VBox minWidth="300.0" HBox.hgrow="NEVER">
+                  <VBox fx:id="rightPanel" minWidth="250.0" prefWidth="300.0" HBox.hgrow="NEVER">
                      <children>
                         <HBox alignment="TOP_RIGHT" minHeight="-Infinity" prefHeight="41.0" style="-fx-background-radius: 6;">
                            <padding>
@@ -525,12 +573,12 @@
                                     <KeyCodeCombination alt="UP" code="E" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
                                  </accelerator>
                               </MenuItem>
-                              <MenuItem fx:id="generateBridgeBtn" mnemonicParsing="false" text="Generate bridge" />
                               <SeparatorMenuItem mnemonicParsing="false" />
                               <MenuItem fx:id="forceMapUpdateBtn" mnemonicParsing="false" text="Force map update" />
                               <MenuItem fx:id="fixHeightsBtn" mnemonicParsing="false" text="Reset tile heights" />
                               <SeparatorMenuItem mnemonicParsing="false" />
                               <MenuItem fx:id="showMapIndexEditor" mnemonicParsing="false" text="Show map_index editor" />
+                              <MenuItem fx:id="showRegionEditor" mnemonicParsing="false" text="Show region editor" />
                               <MenuItem fx:id="showFullMap" mnemonicParsing="false" text="Show full map" />
                               <MenuItem fx:id="showObjectViewBtn" mnemonicParsing="false" text="Show object view" />
                               <MenuItem fx:id="showRemapperBtn" mnemonicParsing="false" text="Show remapper" />
